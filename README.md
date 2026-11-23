@@ -21,11 +21,11 @@ Choosing a task fetches its address; the reply is laid out as a vertical list of
 1. Name the app; optionally give a short name and a folder (for instance a customer).
 2. List the tasks, one per line: `Task name | https://…`, or the name alone, with its address made from the pattern (`{slug}`, `{task}`, `{n}`).
 3. Choose how the passkey is checked:
-   - **in the page:** only a salted SHA-256 hash of it is written into the page, never the passkey itself;
-   - **by a service:** the page POSTs `{"passkey": …, "app": …}` as JSON and expects `{"ok": true}`.
+   - **by a separate service (the default, and the one to use):** the page POSTs `{"passkey": …, "app": …}` as JSON and expects `{"ok": true}`;
+   - **in the page (for tests only):** only a salted SHA-256 hash of it is written into the page, never the passkey itself.
 4. **Build the page**, try it in the preview (canned sub-tasks by default), then **Download ZIP** or the page alone. **Save the specification** keeps the settings (with the hash, never the passkey) for rebuilding later.
 
-A check in the page is a gate, not protection: the task addresses can be read from the page's source. Anything that must stay private needs the service check, with the service also guarding the sub-task addresses (the *Send the passkey* option sends it as `Authorization: Bearer …`).
+A check in the page is a gate, not protection: the task addresses can be read from the page's source. Real use therefore takes the separate service, which should also guard the sub-task addresses (the *Send the passkey* option sends it as `Authorization: Bearer …`).
 
 ## An instance
 
