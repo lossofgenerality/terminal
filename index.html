@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>CCN Terminal — Builder</title>
+<style>
+:root { --bg:#f6f7f7; --panel:#fff; --ink:#17191a; --mute:#5d6366; --line:#dde1e2; --accent:#0f8f8c; --accent-soft:#e3f3f2; --warn:#b45309; --bad:#b91c1c; --ok:#15803d }
+@media (prefers-color-scheme: dark) { :root { --bg:#121516; --panel:#1b1f20; --ink:#e8ecec; --mute:#9aa3a5; --line:#2c3335; --accent:#3cc2bd; --accent-soft:#163331; --warn:#f59e0b; --bad:#f87171; --ok:#4ade80 } }
+* { box-sizing:border-box } body { margin:0; font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink) }
+header { padding:18px 24px 6px } h1 { font-size:21px; margin:0 } .sub { color:var(--mute); font-size:13.5px }
+main { max-width:1100px; margin:0 auto; padding:10px 24px 30px; display:grid; gap:14px }
+.panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px }
+.panel h2 { font-size:15px; margin:0 0 10px }
+label.f { display:block; font-size:12.5px; color:var(--mute); margin:8px 0 3px }
+input[type=text], input[type=password], input[type=url], select, textarea { width:100%; font:inherit; font-size:14px; padding:8px 10px; border:1px solid var(--line); border-radius:7px; background:var(--bg); color:var(--ink) }
+textarea { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; min-height:140px; resize:vertical }
+.row { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:10px } .inline { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px }
+button.b { font:inherit; font-size:14px; padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer } button.b.p { background:var(--accent); border-color:var(--accent); color:#fff } button.b:disabled { opacity:.5; cursor:not-allowed }
+.st { font-size:13px } .st.ok { color:var(--ok) } .st.bad { color:var(--bad) } .st.warn { color:var(--warn) } .mute { color:var(--mute); font-size:12.5px }
+table { width:100%; border-collapse:collapse; font-size:13px; margin-top:8px } th, td { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:top } th { color:var(--mute); font-weight:600 } td.u { word-break:break-all; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12.5px } td.bad { color:var(--bad) }
+.choice label { display:flex; gap:8px; align-items:flex-start; padding:3px 0; font-size:14px } .choice input { margin-top:4px }
+ul.errs { margin:8px 0 0; padding-left:20px; color:var(--bad); font-size:13.5px }
+iframe { width:100%; height:640px; border:1px solid var(--line); border-radius:8px; background:#fff }
+[hidden] { display:none !important }
+footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px }
+</style>
+</head>
+<body>
+<header>
+  <h1>CCN Terminal — Builder</h1>
+  <div class="sub">Describe an app here and the builder writes it as one standalone page: a pulldown of tasks, a passkey sign-in, a sign-out that waits until every sub-task is ticked, and a message box. Each task's sub-tasks are fetched from its own address when the task is chosen.</div>
+</header>
+<main>
+  <section class="panel">
+    <h2>1 · The app</h2>
+    <div class="row">
+      <div><label class="f" for="appName">Name of the app</label><input id="appName" type="text" maxlength="80" placeholder="e.g. Packing Station — Daily Checks"></div>
+      <div><label class="f" for="shortName">Short name, for the installed app (optional)</label><input id="shortName" type="text" maxlength="30" placeholder="e.g. Daily Checks"></div>
+      <div><label class="f" for="folder">Folder, for instance a customer (optional: lower-case letters, digits, dashes)</label><input id="folder" type="text" maxlength="40" spellcheck="false" placeholder="e.g. sfx-ray"></div>
+    </div>
+    <div class="inline"><button class="b" id="example">Fill in an example</button><button class="b" id="loadSpec">Load a specification…</button><input type="file" id="specFile" accept="application/json,.json" hidden><span class="st" id="specStat"></span></div>
+  </section>
+
+  <section class="panel">
+    <h2>2 · Tasks</h2>
+    <div class="mute">One task per line. Give its address after a bar (<code>Task name | https://…</code>), or leave the address out to make it from the pattern below. The address must return the sub-tasks: a JSON list of strings, a JSON object holding such a list under <code>subtasks</code> or <code>items</code>, or plain text with one sub-task per line.</div>
+    <label class="f" for="tasks">Tasks</label><textarea id="tasks" spellcheck="false" placeholder="Morning inspection | https://example.org/checks/morning.json&#10;Evening inspection"></textarea>
+    <label class="f" for="pattern">Address pattern for tasks without their own address: <code>{slug}</code> the task name in lower case with dashes, <code>{task}</code> the name as written, <code>{n}</code> its line number</label>
+    <input id="pattern" type="url" spellcheck="false" placeholder="https://example.org/checks/{slug}.json">
+    <table id="taskTable" hidden><thead><tr><th>#</th><th>Task</th><th>Address of its sub-tasks</th></tr></thead><tbody></tbody></table>
+  </section>
+
+  <section class="panel">
+    <h2>3 · Sign-in and sign-out</h2>
+    <div class="choice">
+      <label><input type="radio" name="authMode" value="hash" checked><span><b>Passkey checked in the page.</b> <span class="mute">The passkey itself is never written into the page; only a salted SHA-256 hash of it is.</span></span></label>
+      <label><input type="radio" name="authMode" value="remote"><span><b>Passkey checked by a service.</b> <span class="mute">The page POSTs <code>{"passkey": …, "app": …}</code> as JSON and expects <code>{"ok": true}</code> in reply.</span></span></label>
+    </div>
+    <div class="row" id="hashFields">
+      <div><label class="f" for="pk1">Passkey (8 characters or more)</label><input id="pk1" type="password" autocomplete="new-password"></div>
+      <div><label class="f" for="pk2">The passkey again</label><input id="pk2" type="password" autocomplete="new-password"></div>
+    </div>
+    <div class="mute" id="keptHash" hidden>The loaded specification already holds a passkey hash; leave both boxes empty to keep it.</div>
+    <div id="remoteFields" hidden><label class="f" for="authUrl">Address of the passkey service</label><input id="authUrl" type="url" spellcheck="false" placeholder="https://www.wolframcloud.com/obj/…/CheckPasskey"></div>
+    <label class="f" for="logoutRule">Sign-out is allowed once</label>
+    <select id="logoutRule"><option value="all">every sub-task of every task is ticked</option><option value="selected">every sub-task of the chosen task is ticked</option></select>
+    <div class="choice" style="margin-top:8px"><label><input type="checkbox" id="sendPasskey"><span>Send the passkey with each sub-task request, as <code>Authorization: Bearer …</code> <span class="mute">(only for addresses that require it; they must then allow that header in CORS)</span></span></label></div>
+  </section>
+
+  <section class="panel">
+    <h2>4 · Build</h2>
+    <div class="inline"><button class="b p" id="build">Build the page</button><label class="mute"><input type="checkbox" id="mockPreview" checked> Preview with canned sub-tasks (no requests)</label><span class="st" id="bstat"></span></div>
+    <ul class="errs" id="errs" hidden></ul>
+    <div id="result" hidden>
+      <div class="inline"><button class="b p" id="dlZip">Download ZIP (page + install files)</button><button class="b" id="dlHtml">Download the page alone (HTML)</button><button class="b" id="dlSpec">Save the specification (JSON)</button><button class="b" id="open">Open the preview in a new tab</button></div>
+      <div class="mute" style="margin:8px 0" id="where"></div>
+      <div class="mute" style="margin:8px 0">The preview below is the page itself; sign in with the passkey you chose. The downloaded page makes real requests unless opened with <code>?mock=1</code>.</div>
+      <iframe id="frame" title="Preview of the built page"></iframe>
+    </div>
+  </section>
+</main>
+<footer><span id="updatedStamp"></span> · CCN Terminal builder · © Computational Classnotes · CC BY-NC-SA 4.0</footer>
+
+<script>
+'use strict';
+const APP_BUILD = '2026.11.23-0536';   // build number, stamped at each commit
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+const st = (el, cls, text) => { el.className = 'st ' + (cls || ''); el.textContent = text || ''; };
+let keptAuth = null, built = null;
+
+/* ---------- reading the form ---------- */
+const slug = s => s.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '');
+function addressProblem(u) {
+  if (!u) return 'no address';
+  let x; try { x = new URL(u, 'https://relative.invalid/'); } catch (e) { return 'not a valid address'; }
+  if (!/^https?:$/.test(x.protocol)) return 'only http and https addresses are allowed';
+  if (/[{}]/.test(u)) return 'an unknown {…} token remains';
+  return '';
+}
+function readTasks() {
+  const pattern = $('#pattern').value.trim();
+  return $('#tasks').value.split(/\r?\n/).map(l => l.trim()).filter(Boolean).map((line, i) => {
+    const bar = line.indexOf('|');
+    const name = (bar < 0 ? line : line.slice(0, bar)).trim(), own = bar < 0 ? '' : line.slice(bar + 1).trim();
+    const url = own || (pattern ? pattern.split('{slug}').join(encodeURIComponent(slug(name) || 'task-' + (i + 1))).split('{task}').join(encodeURIComponent(name)).split('{n}').join(String(i + 1)) : '');
+    return { name, url, problem: !name ? 'no task name' : addressProblem(url) || (!own && !pattern ? 'no address and no pattern' : '') };
+  });
+}
+function showTasks() {
+  const t = readTasks(), seen = new Set();
+  t.forEach(x => { if (seen.has(x.name.toLowerCase()) && !x.problem) x.problem = 'the same name appears twice'; seen.add(x.name.toLowerCase()); });
+  $('#taskTable').hidden = !t.length;
+  $('#taskTable tbody').innerHTML = t.map((x, i) => `<tr><td>${i + 1}</td><td>${esc(x.name)}</td><td class="${x.problem ? 'bad' : 'u'}">${x.problem ? esc(x.problem) : esc(x.url)}</td></tr>`).join('');
+  return t;
+}
+['#tasks', '#pattern'].forEach(s => $(s).addEventListener('input', showTasks));
+const authMode = () => document.querySelector('input[name=authMode]:checked').value;
+function showAuth() { const m = authMode(); $('#hashFields').hidden = m !== 'hash'; $('#remoteFields').hidden = m !== 'remote'; $('#keptHash').hidden = !(m === 'hash' && keptAuth); }
+document.querySelectorAll('input[name=authMode]').forEach(r => r.onchange = showAuth);
+
+/* ---------- SHA-256, as in the page (Web Crypto, or a plain implementation where it is absent) ---------- */
+function sha256Plain(bytes) {
+  const K = new Uint32Array([0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);
+  const H = new Uint32Array([0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19]);
+  const n = bytes.length, total = ((n + 9 + 63) >> 6) << 6, m = new Uint8Array(total);
+  m.set(bytes); m[n] = 0x80; const dv = new DataView(m.buffer);
+  dv.setUint32(total - 8, Math.floor(n / 0x20000000)); dv.setUint32(total - 4, (n << 3) >>> 0);
+  const w = new Uint32Array(64), r = (x, k) => (x >>> k) | (x << (32 - k));
+  for (let o = 0; o < total; o += 64) {
+    for (let i = 0; i < 16; i++) w[i] = dv.getUint32(o + 4 * i);
+    for (let i = 16; i < 64; i++) { const a = w[i - 15], b = w[i - 2]; w[i] = (w[i - 16] + (r(a, 7) ^ r(a, 18) ^ (a >>> 3)) + w[i - 7] + (r(b, 17) ^ r(b, 19) ^ (b >>> 10))) >>> 0; }
+    let [a, b, c, d, e, f, g, h] = H;
+    for (let i = 0; i < 64; i++) {
+      const t1 = (h + (r(e, 6) ^ r(e, 11) ^ r(e, 25)) + ((e & f) ^ (~e & g)) + K[i] + w[i]) >>> 0;
+      const t2 = ((r(a, 2) ^ r(a, 13) ^ r(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) >>> 0;
+      h = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+    }
+    H[0] += a; H[1] += b; H[2] += c; H[3] += d; H[4] += e; H[5] += f; H[6] += g; H[7] += h;
+  }
+  return Array.from(H, x => x.toString(16).padStart(8, '0')).join('');
+}
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(text);
+  try { if (crypto && crypto.subtle) return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), x => x.toString(16).padStart(2, '0')).join(''); } catch (e) {}
+  return sha256Plain(bytes);
+}
+const randomHex = n => Array.from(crypto.getRandomValues(new Uint8Array(n)), x => x.toString(16).padStart(2, '0')).join('');
+
+/* ---------- the specification: everything the page needs, never the passkey itself ---------- */
+async function makeSpec() {
+  const errs = [], appName = $('#appName').value.trim(), tasks = showTasks();
+  if (!appName) errs.push('Give the app a name.');
+  const folder = $('#folder').value.trim(); if (folder && !/^[a-z0-9][a-z0-9-]{1,39}$/.test(folder)) errs.push('The folder must be 2–40 lower-case letters, digits or dashes.');
+  if (!tasks.length) errs.push('List at least one task.');
+  tasks.forEach((t, i) => t.problem && errs.push(`Task ${i + 1}${t.name ? ' (' + t.name + ')' : ''}: ${t.problem}.`));
+  let auth = null;
+  if (authMode() === 'hash') {
+    const p1 = $('#pk1').value, p2 = $('#pk2').value;
+    if (!p1 && !p2 && keptAuth) auth = keptAuth;
+    else if (p1.trim() !== p1) errs.push('The passkey must not begin or end with a space.');
+    else if (p1.length < 8) errs.push('The passkey must have 8 characters or more.');
+    else if (p1 !== p2) errs.push('The two passkeys differ.');
+    else { const salt = randomHex(16); auth = { mode: 'hash', salt, hash: await sha256Hex(salt + ':' + p1) }; }
+  } else {
+    const u = $('#authUrl').value.trim(), pr = addressProblem(u);
+    if (pr || !/^https?:\/\//.test(u)) errs.push('The passkey service needs a full http or https address.'); else auth = { mode: 'remote', url: u };
+  }
+  return { errs, spec: { kind: 'ccn-terminal', appName, shortName: $('#shortName').value.trim() || appName.slice(0, 30), folder, tasks: tasks.map(t => ({ name: t.name, url: t.url })), source: { tasks: $('#tasks').value, pattern: $('#pattern').value.trim() },
+    auth, logoutRule: $('#logoutRule').value, sendPasskey: $('#sendPasskey').checked } };
+}
+function applySpec(s) {
+  if (!s || s.kind !== 'ccn-terminal') throw new Error('This is not a Terminal specification.');
+  $('#appName').value = s.appName || ''; $('#shortName').value = s.shortName || ''; $('#folder').value = s.folder || '';
+  $('#tasks').value = s.source ? s.source.tasks : (s.tasks || []).map(t => `${t.name} | ${t.url}`).join('\n');
+  $('#pattern').value = s.source ? s.source.pattern || '' : '';
+  $('#logoutRule').value = s.logoutRule === 'selected' ? 'selected' : 'all'; $('#sendPasskey').checked = !!s.sendPasskey;
+  keptAuth = s.auth && s.auth.mode === 'hash' && /^[0-9a-f]{64}$/.test(s.auth.hash) ? s.auth : null;
+  document.querySelector(`input[name=authMode][value=${s.auth && s.auth.mode === 'remote' ? 'remote' : 'hash'}]`).checked = true;
+  $('#authUrl').value = s.auth && s.auth.mode === 'remote' ? s.auth.url : ''; $('#pk1').value = $('#pk2').value = '';
+  showAuth(); showTasks();
+}
+
+/* ---------- filling the template ---------- */
+let TPL = null;
+async function template() {
+  if (TPL) return TPL;
+  let r; try { r = await fetch('terminal-template.html', { cache: 'no-store' }); } catch (e) { r = null; }
+  if (!r || !r.ok) throw new Error('terminal-template.html could not be loaded. Open the builder from its web address (for instance GitHub Pages or a local web server), not as a file.');
+  return TPL = await r.text();
+}
+function fillTemplate(tpl, spec, opts) {
+  const cfg = { id: opts.id, made: opts.made, appName: spec.appName, short: spec.shortName, tasks: spec.tasks, auth: spec.auth, logoutRule: spec.logoutRule, sendPasskey: spec.sendPasskey, builder_build: APP_BUILD };
+  if (opts.mock) cfg.mock = true;
+  const json = JSON.stringify(cfg).replace(/</g, '\\u003c');
+  return { cfg, page: tpl.split('__APP_NAME__').join(esc(spec.appName)).replace('__CONFIG__', () => json) };
+}
+
+$('#build').onclick = async () => {
+  st($('#bstat'), '', 'Building…'); $('#errs').hidden = true;
+  try {
+    const { errs, spec } = await makeSpec();
+    if (errs.length) { $('#errs').innerHTML = errs.map(e => `<li>${esc(e)}</li>`).join(''); $('#errs').hidden = false; st($('#bstat'), 'bad', 'Please correct the points below.'); return; }
+    const tpl = await template(), now = new Date(), made = now.toISOString(), base = slug(spec.appName) || 'terminal';
+    const stamp = made.slice(0, 10).replace(/-/g, '') + '-' + made.slice(11, 16).replace(':', '');    // UTC, as in the witness pages
+    const id = base + '-' + now.getTime().toString(36), real = fillTemplate(tpl, spec, { id, made });
+    built = { spec, cfg: real.cfg, page: real.page, preview: fillTemplate(tpl, spec, { id, made, mock: $('#mockPreview').checked }).page, file: base + '.html', dir: base + '-' + stamp };
+    $('#where').innerHTML = `Folder of this instance: <code>${esc((spec.folder ? spec.folder + '/' : '') + built.dir + '/')}</code>`;
+    if (built.url) URL.revokeObjectURL(built.url);
+    built.url = URL.createObjectURL(new Blob([built.preview], { type: 'text/html' }));
+    $('#frame').src = built.url; $('#result').hidden = false;
+    keptAuth = spec.auth.mode === 'hash' ? spec.auth : keptAuth; $('#pk1').value = $('#pk2').value = ''; showAuth();
+    st($('#bstat'), 'ok', `Built: ${spec.tasks.length} task${spec.tasks.length === 1 ? '' : 's'}, ${(built.page.length / 1024).toFixed(1)} KB.`);
+    document.body.dataset.built = 'yes';
+  } catch (e) { st($('#bstat'), 'bad', e.message || String(e)); }
+};
+function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); }
+$('#dlZip').onclick = async () => {
+  if (!built) return;
+  try { const zip = makeZip(await instanceFiles(built)); const a = document.createElement('a'); a.href = URL.createObjectURL(zip); a.download = built.dir + '.zip'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    st($('#bstat'), 'ok', `ZIP ready: ${built.dir}.zip (${(zip.size / 1024).toFixed(0)} KB).`); document.body.dataset.zipSize = String(zip.size); }
+  catch (e) { st($('#bstat'), 'bad', e.message || String(e)); }
+};
+$('#dlHtml').onclick = () => built && download(built.file, built.page, 'text/html');
+$('#dlSpec').onclick = () => built && download(built.file.replace(/\.html$/, '') + '.spec.json', JSON.stringify(built.spec, null, 2), 'application/json');
+$('#open').onclick = () => built && window.open(built.url, '_blank', 'noopener');
+$('#loadSpec').onclick = () => $('#specFile').click();
+$('#specFile').onchange = async () => {
+  const f = $('#specFile').files[0]; if (!f) return;
+  try { applySpec(JSON.parse(await f.text())); st($('#specStat'), 'ok', 'Loaded ' + f.name + '.'); } catch (e) { st($('#specStat'), 'bad', e.message); }
+  $('#specFile').value = '';
+};
+$('#example').onclick = () => {
+  $('#appName').value = 'Packing Station — Daily Checks';
+  $('#tasks').value = 'Morning inspection\nLabel printer\nDispatch log | https://lossofgenerality.github.io/terminal/examples/dispatch-log.txt';
+  $('#pattern').value = 'https://lossofgenerality.github.io/terminal/examples/{slug}.json';
+  showTasks(); st($('#specStat'), 'ok', 'Example filled in; choose a passkey, then build.');
+};
+showAuth();
+
+/* ---------- an instance, laid out as the witness pages are: <folder>/<app>-<YYYYMMDD-HHMM>/ ---------- */
+const ICONS = ['icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png', 'favicon-32.png'];
+let ICON_DATA = null;
+async function icons() {
+  if (ICON_DATA) return ICON_DATA;
+  const got = await Promise.all(ICONS.map(n => fetch('icons/' + n).then(r => { if (!r.ok) throw new Error('could not load icons/' + n); return r.arrayBuffer(); })));
+  return ICON_DATA = Object.fromEntries(ICONS.map((n, i) => [n, new Uint8Array(got[i])]));
+}
+function manifestFor(c) { return JSON.stringify({ name: c.appName, short_name: c.short, description: `${c.appName} — a CCN Terminal page. From Computational Classnotes.`, id: './', start_url: './', scope: './', display: 'standalone', orientation: 'any', lang: 'en-GB',
+  background_color: '#f6f7f7', theme_color: '#0f8f8c', icons: [{ src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' }, { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' }, { src: 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }] }, null, 2); }
+function swFor(c) { return `/* ${c.short} service worker — the page opens offline; sub-tasks always come from their own addresses.
+   © Computational Classnotes · CC BY-NC-SA 4.0 */
+const VERSION = ${JSON.stringify('terminal-' + c.id)};
+const SHELL = ['./', './index.html', './manifest.webmanifest', './notes.md', ${ICONS.map(n => `'./icons/${n}'`).join(', ')}];
+self.addEventListener('install', e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
+self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== VERSION).map(x => caches.delete(x)))).then(() => self.clients.claim())); });
+self.addEventListener('fetch', e => {
+  const req = e.request; if (req.method !== 'GET') return; const url = new URL(req.url); if (url.origin !== self.location.origin) return;
+  if (url.pathname.endsWith('.json') && !url.pathname.endsWith('manifest.webmanifest')) return;
+  if (req.mode === 'navigate') { e.respondWith(fetch(req).then(r => { const c = r.clone(); caches.open(VERSION).then(x => x.put(req, c)); return r; }).catch(() => caches.match(req).then(h => h || caches.match('./index.html')))); return; }
+  e.respondWith(caches.match(req).then(h => h || fetch(req)));
+});
+`; }
+function notesFor(c) {
+  const L = [`# ${c.appName} — Production notes`, '', `*Made with the CCN Terminal builder · ${c.made.slice(0, 16).replace('T', ' ')} UTC · builder build ${APP_BUILD}*`, '', '## Tasks', '', '| # | Task | Address of its sub-tasks |', '|---|---|---|'];
+  c.tasks.forEach((t, i) => L.push(`| ${i + 1} | ${t.name.replace(/\|/g, '\\|')} | ${t.url} |`));
+  L.push('', '## Sign-in and sign-out', '', c.auth.mode === 'hash' ? '- The passkey is checked in the page against a salted SHA-256 hash; the passkey itself is not in the page.' : `- The passkey is checked by the service at ${c.auth.url}.`,
+    `- Sign-out is allowed once every sub-task of ${c.logoutRule === 'selected' ? 'the chosen task' : 'every task'} is ticked.`, `- The passkey is ${c.sendPasskey ? '' : 'not '}sent with sub-task requests.`, '- Messaging is a placeholder (\`sendMessage\`), not yet connected.', '', '---', '© Computational Classnotes · CC BY-NC-SA 4.0', '');
+  return L.join('\n');
+}
+function readmeFor(c) { return `# ${c.appName}\n\nA CCN Terminal page. Open \`index.html\` (best from an https:// site such as GitHub Pages, so that Install works). Add \`?mock=1\` to the address for canned sub-tasks and no requests.\n\n- \`index.html\` — the page (everything built in; sub-tasks are fetched from each task's address)\n- \`notes.md\` — production notes\n- \`terminal-data.json\` — the page's settings, for reuse\n- \`manifest.webmanifest\`, \`sw.js\`, \`icons/\` — install files\n\n© Computational Classnotes · CC BY-NC-SA 4.0\n`; }
+async function instanceFiles(b) {
+  const enc = new TextEncoder(), root = (b.spec.folder ? b.spec.folder + '/' : '') + b.dir + '/', ic = await icons(), c = b.cfg;
+  return [{ name: root + 'index.html', data: enc.encode(b.page) }, { name: root + 'README.md', data: enc.encode(readmeFor(c)) }, { name: root + 'notes.md', data: enc.encode(notesFor(c)) },
+    { name: root + 'terminal-data.json', data: enc.encode(JSON.stringify({ data: c })) }, { name: root + 'manifest.webmanifest', data: enc.encode(manifestFor(c)) }, { name: root + 'sw.js', data: enc.encode(swFor(c)) },
+    ...ICONS.map(n => ({ name: root + 'icons/' + n, data: ic[n] }))];
+}
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u8) { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function makeZip(files) {      // files: [{name, data: Uint8Array}], stored without compression
+  const enc = new TextEncoder(), parts = [], central = []; let off = 0; const now = new Date();
+  const dt = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1)) & 0xFFFF, dd = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xFFFF;
+  for (const f of files) { const nm = enc.encode(f.name), d = f.data, crc = crc32(d);
+    const h = new DataView(new ArrayBuffer(30)); h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true); h.setUint16(10, dt, true); h.setUint16(12, dd, true);
+    h.setUint32(14, crc, true); h.setUint32(18, d.length, true); h.setUint32(22, d.length, true); h.setUint16(26, nm.length, true); h.setUint16(28, 0, true);
+    parts.push(new Uint8Array(h.buffer), nm, d);
+    const c = new DataView(new ArrayBuffer(46)); c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true); c.setUint16(12, dt, true); c.setUint16(14, dd, true);
+    c.setUint32(16, crc, true); c.setUint32(20, d.length, true); c.setUint32(24, d.length, true); c.setUint16(28, nm.length, true); c.setUint32(42, off, true);
+    central.push(new Uint8Array(c.buffer), nm); off += 30 + nm.length + d.length; }
+  const csz = central.reduce((a, b) => a + b.length, 0), e = new DataView(new ArrayBuffer(22)); e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, csz, true); e.setUint32(16, off, true);
+  return new Blob([...parts, ...central, new Uint8Array(e.buffer)], { type: 'application/zip' });
+}
+
+/* freshness: when this copy was last updated, and a reload offer when a newer copy is online */
+(() => {
+  const UPDATED = '2026-11-23T05:36:00Z';
+  const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+  const PUBLISHED = /^https?:/.test(location.protocol) && !isNaN(Date.parse(document.lastModified)) ? document.lastModified : UPDATED;
+  const slot = document.getElementById('updatedStamp'); if (slot) slot.textContent = 'Build ' + APP_BUILD + ' · Updated ' + show(PUBLISHED);
+  let told = false;
+  async function check() {
+    if (told || !/^https?:/.test(location.protocol)) return;
+    try {
+      const r = await fetch(location.href.split('#')[0], { method: 'HEAD', cache: 'no-store' });
+      const online = Date.parse(r.headers.get('last-modified') || ''), mine = Date.parse(document.lastModified);
+      if (online && mine && online - mine > 60000) {
+        told = true; const b = document.createElement('div');
+        b.setAttribute('role', 'status'); b.style.cssText = 'position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:99999;background:#0b7a75;color:#fff;padding:8px 12px;border-radius:8px;box-shadow:0 4px 18px rgba(0,0,0,.25);font:14px system-ui,sans-serif;display:flex;gap:10px;align-items:center';
+        b.innerHTML = `<span>A newer version of this page is online (updated ${show(online)}).</span><button style="font:inherit;padding:3px 10px;border-radius:6px;border:0;cursor:pointer">Reload</button>`;
+        b.querySelector('button').onclick = () => { const u = new URL(location.href); u.searchParams.set('fresh', Date.now().toString(36)); location.replace(u.toString()); };
+        document.body.appendChild(b);
+      }
+    } catch (e) {}
+  }
+  addEventListener('load', () => setTimeout(check, 1500));
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); });
+  setInterval(check, 10 * 60 * 1000);
+})();
+</script>
+</body>
+</html>

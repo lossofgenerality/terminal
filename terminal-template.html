@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#0f8f8c" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1b1f20" media="(prefers-color-scheme: dark)">
+<title>__APP_NAME__</title>
+<style>
+:root { --bg:#f6f7f7; --panel:#fff; --ink:#17191a; --mute:#5d6366; --line:#dde1e2; --accent:#0f8f8c; --accent-soft:#e3f3f2; --warn:#b45309; --bad:#b91c1c; --ok:#15803d }
+@media (prefers-color-scheme: dark) { :root { --bg:#121516; --panel:#1b1f20; --ink:#e8ecec; --mute:#9aa3a5; --line:#2c3335; --accent:#3cc2bd; --accent-soft:#163331; --warn:#f59e0b; --bad:#f87171; --ok:#4ade80 } }
+* { box-sizing:border-box }
+body { margin:0; font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink) }
+main { max-width:860px; margin:0 auto; padding:14px 20px 30px; display:grid; gap:14px }
+.panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px }
+.panel h2 { font-size:15px; margin:0 0 10px }
+label.f { display:block; font-size:12.5px; color:var(--mute); margin:0 0 3px }
+input[type=text], input[type=password], select { width:100%; font:inherit; font-size:14px; padding:8px 10px; border:1px solid var(--line); border-radius:7px; background:var(--bg); color:var(--ink) }
+select:disabled { opacity:.55 }
+.row { display:flex; gap:8px; align-items:center }
+.row > input, .row > select { flex:1 }
+button.b { font:inherit; font-size:14px; padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; white-space:nowrap }
+button.b.p { background:var(--accent); border-color:var(--accent); color:#fff }
+button.b:disabled { opacity:.5; cursor:not-allowed }
+#taskBar { position:sticky; top:0; z-index:5; background:var(--panel); border-bottom:1px solid var(--line); padding:10px 20px }
+#taskBar .in { max-width:860px; margin:0 auto }
+h1 { font-size:22px; margin:4px 0 0 }
+.st { font-size:13px; min-height:1.2em; margin-top:6px } .st.ok { color:var(--ok) } .st.bad { color:var(--bad) } .st.warn { color:var(--warn) }
+.mute { color:var(--mute); font-size:12.5px }
+#subtasks { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px }
+#subtasks li label { display:flex; gap:10px; align-items:flex-start; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:var(--bg); cursor:pointer }
+#subtasks li input { margin-top:4px; width:17px; height:17px; accent-color:var(--accent) }
+#subtasks li input:checked + span { color:var(--mute); text-decoration:line-through }
+.progress { font-size:13px; color:var(--mute) } .progress b { color:var(--ink) }
+[hidden] { display:none !important }
+footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px }
+</style>
+</head>
+<body>
+<!-- the pulldown of tasks, at the very top; it appears only once the passkey is accepted -->
+<div id="taskBar" hidden>
+  <div class="in">
+    <label class="f" for="task">Task</label>
+    <div class="row"><select id="task"><option value="">Choose a task…</option></select><span class="progress" id="progress"></span></div>
+  </div>
+</div>
+<main>
+  <header class="row" style="justify-content:space-between"><h1 id="appName">__APP_NAME__</h1><button class="b p" id="installBtn" hidden>Install app</button></header>
+
+  <section class="panel" id="loginPanel">
+    <h2>Sign in</h2>
+    <div class="row"><input id="passkey" type="password" placeholder="Enter passkey" autocomplete="current-password" aria-label="Passkey"><button class="b p" id="login">Sign in</button></div>
+    <div class="st" id="lstat"></div>
+  </section>
+
+  <section class="panel" id="logoutPanel" hidden>
+    <h2>Sign out</h2>
+    <div class="row"><button class="b" id="logout" disabled>Sign out</button><span class="mute" id="logoutWhy"></span></div>
+  </section>
+
+  <section class="panel" id="taskPanel" hidden>
+    <h2 id="taskTitle">Sub-tasks</h2>
+    <ul id="subtasks"></ul>
+    <div class="st" id="tstat"></div>
+    <div class="row" id="retryRow" hidden><button class="b" id="retry">Try again</button></div>
+  </section>
+
+  <section class="panel" id="msgPanel">
+    <h2>Message</h2>
+    <div class="row"><input id="message" type="text" placeholder="Write a message" aria-label="Message"><button class="b" id="send">Send</button></div>
+    <div class="st" id="mstat"></div>
+  </section>
+</main>
+<footer><span id="updatedStamp"></span> · © Computational Classnotes · CC BY-NC-SA 4.0</footer>
+
+<script id="config" type="application/json">__CONFIG__</script>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const CFG = JSON.parse($('#config').textContent);
+const MOCK = !!CFG.mock || /[?&]mock=1/.test(location.search);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+const clean = v => String(v || '').trim();
+const st = (el, cls, text) => { el.className = 'st ' + (cls || ''); el.textContent = text || ''; };
+
+/* ---------- messaging: placeholder, to be implemented ---------- */
+function sendMessage(text) {
+  // placeholder: deliberately empty for now
+}
+
+/* ---------- SHA-256 (Web Crypto where available; a plain implementation otherwise, e.g. on file:// in some browsers) ---------- */
+function sha256Plain(bytes) {
+  const K = new Uint32Array([0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);
+  const H = new Uint32Array([0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19]);
+  const n = bytes.length, total = ((n + 9 + 63) >> 6) << 6, m = new Uint8Array(total);
+  m.set(bytes); m[n] = 0x80; const dv = new DataView(m.buffer);
+  dv.setUint32(total - 8, Math.floor(n / 0x20000000)); dv.setUint32(total - 4, (n << 3) >>> 0);
+  const w = new Uint32Array(64), r = (x, k) => (x >>> k) | (x << (32 - k));
+  for (let o = 0; o < total; o += 64) {
+    for (let i = 0; i < 16; i++) w[i] = dv.getUint32(o + 4 * i);
+    for (let i = 16; i < 64; i++) { const a = w[i - 15], b = w[i - 2]; w[i] = (w[i - 16] + (r(a, 7) ^ r(a, 18) ^ (a >>> 3)) + w[i - 7] + (r(b, 17) ^ r(b, 19) ^ (b >>> 10))) >>> 0; }
+    let [a, b, c, d, e, f, g, h] = H;
+    for (let i = 0; i < 64; i++) {
+      const t1 = (h + (r(e, 6) ^ r(e, 11) ^ r(e, 25)) + ((e & f) ^ (~e & g)) + K[i] + w[i]) >>> 0;
+      const t2 = ((r(a, 2) ^ r(a, 13) ^ r(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) >>> 0;
+      h = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+    }
+    H[0] += a; H[1] += b; H[2] += c; H[3] += d; H[4] += e; H[5] += f; H[6] += g; H[7] += h;
+  }
+  return Array.from(H, x => x.toString(16).padStart(8, '0')).join('');
+}
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(text);
+  try { if (crypto && crypto.subtle) return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), x => x.toString(16).padStart(2, '0')).join(''); } catch (e) {}
+  return sha256Plain(bytes);
+}
+
+/* ---------- the passkey ---------- */
+let passkey = '';     // held in memory only while signed in, never stored
+async function checkPasskey(p) {
+  const a = CFG.auth || {};
+  if (a.mode === 'hash') return (await sha256Hex(a.salt + ':' + p)) === a.hash;
+  if (a.mode === 'remote') {
+    if (MOCK) return p === 'test-passkey';
+    const r = await fetch(a.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ passkey: p, app: CFG.appName }) });
+    let j = null; try { j = await r.json(); } catch (e) {}
+    if (!j) throw new Error(`Unreadable reply from the passkey service (HTTP ${r.status}).`);
+    return j.ok === true || j.accepted === true || j.Success === true;
+  }
+  throw new Error('This page has no passkey check configured.');
+}
+
+/* ---------- sub-tasks: fetched from each task's address ---------- */
+function parseSubtasks(raw) {
+  const fromJSON = v => {
+    if (Array.isArray(v)) return v.map(x => typeof x === 'string' ? x : (x && (x.text ?? x.name ?? x.title ?? x.task))).filter(x => x != null).map(String);
+    if (v && typeof v === 'object') for (const k of ['subtasks', 'sub_tasks', 'items', 'tasks', 'list', 'data']) if (k in v) return fromJSON(v[k]);
+    return null;
+  };
+  let list = null; try { list = fromJSON(JSON.parse(raw)); } catch (e) {}
+  if (!list) list = raw.split(/\r?\n/).map(s => s.replace(/^\s*(?:[-*•]|\d+[.)]|\[[ xX]?\])\s*/, ''));
+  return list.map(s => s.trim()).filter(Boolean).slice(0, 1000);
+}
+async function fetchSubtasks(t) {
+  if (MOCK) { await new Promise(r => setTimeout(r, 150)); return [1, 2, 3].map(i => `${t.name}: sub-task ${i}`); }
+  const headers = CFG.sendPasskey ? { Authorization: 'Bearer ' + passkey } : {};
+  const r = await fetch(t.url, { headers, cache: 'no-store' });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const list = parseSubtasks(await r.text());
+  if (!list.length) throw new Error('the reply held no sub-tasks');
+  return list;
+}
+
+/* ---------- state ---------- */
+// per task: { list: [strings], done: [booleans], error, loading: Promise }
+let S = {};
+const tasks = CFG.tasks || [];
+function load(i) {
+  const s = S[i] || (S[i] = {});
+  if (s.list || s.loading) return s.loading || Promise.resolve();
+  s.error = null;
+  return s.loading = fetchSubtasks(tasks[i])
+    .then(list => { s.list = list; s.done = list.map(() => false); })
+    .catch(e => { s.error = e.message || String(e); })
+    .finally(() => { s.loading = null; refresh(); });
+}
+function counts() {
+  const idx = CFG.logoutRule === 'selected' ? ($('#task').value === '' ? [] : [Number($('#task').value)]) : tasks.map((_, i) => i);
+  let done = 0, all = 0, pending = 0, failed = 0;
+  idx.forEach(i => { const s = S[i] || {}; if (s.list) { all += s.list.length; done += s.done.filter(Boolean).length; } else if (s.error) failed++; else pending++; });
+  return { idx, done, all, pending, failed };
+}
+function refresh() {
+  if (!passkey) return;
+  const c = counts(), complete = c.idx.length > 0 && !c.pending && !c.failed && c.done === c.all;
+  $('#logout').disabled = !complete;
+  const scope = CFG.logoutRule === 'selected' ? 'this task' : 'every task';
+  $('#logoutWhy').textContent = complete ? 'Every sub-task is complete.' :
+    !c.idx.length ? 'Choose a task first.' :
+    c.failed ? `Sign-out waits until the sub-tasks of ${scope} can be loaded.` :
+    c.pending ? 'Loading sub-tasks…' : `Complete ${scope === 'this task' ? 'every sub-task of this task' : 'every sub-task of every task'} to sign out (${c.done} of ${c.all}).`;
+  $('#progress').innerHTML = c.all ? `<b>${c.done}</b> of ${c.all} complete` : '';
+  showTask();
+}
+function showTask() {
+  const v = $('#task').value; $('#taskPanel').hidden = v === '';
+  if (v === '') return;
+  const i = Number(v), s = S[i] || {}, t = tasks[i];
+  $('#taskTitle').textContent = t.name;
+  $('#retryRow').hidden = !s.error;
+  if (s.error) { $('#subtasks').innerHTML = ''; st($('#tstat'), 'bad', `The sub-tasks could not be loaded (${s.error}).`); return; }
+  if (!s.list) { $('#subtasks').innerHTML = ''; st($('#tstat'), '', 'Loading sub-tasks…'); return; }
+  st($('#tstat'), '', '');
+  const ul = $('#subtasks');
+  if (ul.dataset.task !== v) {       // rebuild only when another task is shown, so ticking keeps focus
+    ul.dataset.task = v;
+    ul.innerHTML = s.list.map((x, k) => `<li><label><input type="checkbox" data-k="${k}" ${s.done[k] ? 'checked' : ''}><span>${esc(x)}</span></label></li>`).join('');
+  }
+}
+$('#subtasks').addEventListener('change', e => {
+  const k = e.target.dataset.k; if (k == null) return;
+  const s = S[Number($('#task').value)]; s.done[Number(k)] = e.target.checked; refresh();
+});
+$('#task').onchange = () => { $('#subtasks').dataset.task = ''; const v = $('#task').value; if (v !== '') load(Number(v)); refresh(); };
+$('#retry').onclick = () => { const i = Number($('#task').value); S[i] = {}; $('#subtasks').dataset.task = ''; load(i); refresh(); };
+
+/* ---------- sign in and out ---------- */
+async function signIn() {
+  const p = clean($('#passkey').value);
+  if (!p) { st($('#lstat'), 'bad', 'Please enter the passkey.'); return; }
+  st($('#lstat'), '', 'Checking…'); $('#login').disabled = true;
+  try {
+    if (!(await checkPasskey(p))) { st($('#lstat'), 'bad', 'The passkey was not accepted.'); return; }
+    passkey = p; $('#passkey').value = ''; S = {};
+    $('#task').innerHTML = '<option value="">Choose a task…</option>' + tasks.map((t, i) => `<option value="${i}">${esc(t.name)}</option>`).join('');
+    $('#taskBar').hidden = false; $('#logoutPanel').hidden = false; $('#loginPanel').hidden = true;
+    st($('#lstat'), 'ok', '');
+    if (CFG.logoutRule !== 'selected') {           // sign-out depends on every task, so every list is loaded, four at a time
+      let next = 0; const worker = async () => { while (next < tasks.length && passkey) await load(next++); };
+      Promise.all([0, 1, 2, 3].map(worker));
+    }
+    refresh();
+  } catch (e) { st($('#lstat'), 'bad', e.message || String(e)); }
+  finally { $('#login').disabled = false; }
+}
+$('#login').onclick = signIn;
+$('#passkey').addEventListener('keydown', e => { if (e.key === 'Enter') signIn(); });
+$('#logout').onclick = () => {
+  if ($('#logout').disabled) return;
+  passkey = ''; S = {};
+  $('#taskBar').hidden = $('#logoutPanel').hidden = $('#taskPanel').hidden = true; $('#loginPanel').hidden = false;
+  $('#task').innerHTML = '<option value="">Choose a task…</option>'; $('#subtasks').innerHTML = ''; $('#subtasks').dataset.task = '';
+  st($('#lstat'), 'ok', 'Signed out.'); $('#passkey').focus();
+};
+
+/* ---------- messaging ---------- */
+function send() { const text = clean($('#message').value); if (!text) return; sendMessage(text); st($('#mstat'), 'warn', 'Messaging is not yet connected.'); }
+$('#send').onclick = send;
+$('#message').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+
+if (MOCK) st($('#lstat'), 'warn', 'Test mode: canned sub-tasks, no requests are made.' + (CFG.auth && CFG.auth.mode === 'remote' ? ' The passkey is "test-passkey".' : ''));
+
+/* ---------- install: the page opens offline once installed (needs https or localhost) ---------- */
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+  addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+(() => {
+  let deferred = null; const btn = $('#installBtn');
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; btn.hidden = false; });
+  addEventListener('appinstalled', () => { btn.hidden = true; deferred = null; });
+  btn.onclick = async () => { if (!deferred) return; deferred.prompt(); try { await deferred.userChoice; } catch (e) {} deferred = null; btn.hidden = true; };
+})();
+
+/* ---------- build stamp ---------- */
+(() => {
+  const APP_BUILD = '2026.11.23-0536';   // page design build, stamped at each commit
+  const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+  const slot = document.getElementById('updatedStamp');
+  if (slot) slot.textContent = 'Page design build ' + APP_BUILD + (CFG.builder_build ? ' · builder build ' + CFG.builder_build : '') + ' · made ' + show(CFG.made);
+})();
+</script>
+</body>
+</html>
