@@ -70,8 +70,9 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
   </section>
 
   <section class="panel" id="msgPanel">
-    <h2>Message</h2>
-    <div class="row"><input id="message" type="text" placeholder="Write a message" aria-label="Message"><button class="b" id="send">Send</button></div>
+    <h2>Message the manager</h2>
+    <div class="mute" style="margin:-4px 0 8px">Available before signing in too, for instance if the passkey is not accepted.</div>
+    <div class="row"><input id="message" type="text" placeholder="Write a message to the manager" aria-label="Message to the manager"><button class="b" id="send">Send</button></div>
     <div class="st" id="mstat"></div>
   </section>
 </main>
@@ -119,19 +120,37 @@ async function sha256Hex(text) {
   return sha256Plain(bytes);
 }
 
-/* ---------- the passkey ---------- */
+/* ---------- the passkey, and which tasks are already complete ----------
+   service protocol (JSON, POST to auth.url):
+     sign-in   {action:"signin",   passkey, app, page}              -> {ok:true, done:["task name", …]}   (done optional)
+     sign-out  {action:"complete", passkey, app, page, task, subtasks} -> {ok:true}
+   with the in-page check, completed tasks are remembered on this device only */
 let passkey = '';     // held in memory only while signed in, never stored
-async function checkPasskey(p) {
+const DONE_KEY = 'ccn-terminal-done-' + (CFG.id || CFG.appName);
+const localDone = () => { try { const v = JSON.parse(localStorage.getItem(DONE_KEY) || '[]'); return Array.isArray(v) ? v.map(String) : []; } catch (e) { return []; } };
+const saveLocalDone = list => { try { localStorage.setItem(DONE_KEY, JSON.stringify(list)); } catch (e) {} };
+async function service(body) {
+  const a = CFG.auth;
+  const r = await fetch(a.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, app: CFG.appName, page: CFG.id }) });
+  let j = null; try { j = await r.json(); } catch (e) {}
+  if (!j) throw new Error(`Unreadable reply from the passkey service (HTTP ${r.status}).`);
+  return j;
+}
+const accepted = j => j.ok === true || j.accepted === true || j.Success === true;
+async function checkPasskey(p) {        // -> { ok, done: [task names] }
   const a = CFG.auth || {};
-  if (a.mode === 'hash') return (await sha256Hex(a.salt + ':' + p)) === a.hash;
+  if (a.mode === 'hash') return { ok: (await sha256Hex(a.salt + ':' + p)) === a.hash, done: localDone() };
   if (a.mode === 'remote') {
-    if (MOCK) return p === 'test-passkey';
-    const r = await fetch(a.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ passkey: p, app: CFG.appName }) });
-    let j = null; try { j = await r.json(); } catch (e) {}
-    if (!j) throw new Error(`Unreadable reply from the passkey service (HTTP ${r.status}).`);
-    return j.ok === true || j.accepted === true || j.Success === true;
+    if (MOCK) return { ok: p === 'test-passkey', done: localDone() };
+    const j = await service({ action: 'signin', passkey: p });
+    return { ok: accepted(j), done: Array.isArray(j.done) ? j.done.map(String) : localDone() };
   }
   throw new Error('This page has no passkey check configured.');
+}
+async function recordComplete(t, list) {
+  const a = CFG.auth || {};
+  if (a.mode === 'remote' && !MOCK) { const j = await service({ action: 'complete', passkey, task: t.name, subtasks: list }); if (!accepted(j)) throw new Error(j.message || j.Message || 'the service did not record it'); }
+  const d = localDone(); if (!d.includes(t.name)) { d.push(t.name); saveLocalDone(d); }
 }
 
 /* ---------- sub-tasks: fetched from each task's address ---------- */
@@ -155,58 +174,42 @@ async function fetchSubtasks(t) {
   return list;
 }
 
-/* ---------- state ---------- */
-// per task: { list: [strings], done: [booleans], error, loading: Promise }
-let S = {};
+/* ---------- one task per session: choose it, complete every sub-task, then sign out ---------- */
 const tasks = CFG.tasks || [];
-function load(i) {
-  const s = S[i] || (S[i] = {});
-  if (s.list || s.loading) return s.loading || Promise.resolve();
-  s.error = null;
-  return s.loading = fetchSubtasks(tasks[i])
-    .then(list => { s.list = list; s.done = list.map(() => false); })
-    .catch(e => { s.error = e.message || String(e); })
-    .finally(() => { s.loading = null; refresh(); });
-}
-function counts() {
-  const idx = CFG.logoutRule === 'selected' ? ($('#task').value === '' ? [] : [Number($('#task').value)]) : tasks.map((_, i) => i);
-  let done = 0, all = 0, pending = 0, failed = 0;
-  idx.forEach(i => { const s = S[i] || {}; if (s.list) { all += s.list.length; done += s.done.filter(Boolean).length; } else if (s.error) failed++; else pending++; });
-  return { idx, done, all, pending, failed };
+let cur = null;      // { i, list: [strings], done: [booleans], error, loading }
+function choose(i) {
+  cur = { i }; $('#subtasks').dataset.task = '';
+  fetchSubtasks(tasks[i]).then(list => { if (cur && cur.i === i) { cur.list = list; cur.done = list.map(() => false); } })
+    .catch(e => { if (cur && cur.i === i) cur.error = e.message || String(e); }).finally(refresh);
+  refresh();
 }
 function refresh() {
   if (!passkey) return;
-  const c = counts(), complete = c.idx.length > 0 && !c.pending && !c.failed && c.done === c.all;
-  $('#logout').disabled = !complete;
-  const scope = CFG.logoutRule === 'selected' ? 'this task' : 'every task';
-  $('#logoutWhy').textContent = complete ? 'Every sub-task is complete.' :
-    !c.idx.length ? 'Choose a task first.' :
-    c.failed ? `Sign-out waits until the sub-tasks of ${scope} can be loaded.` :
-    c.pending ? 'Loading sub-tasks…' : `Complete ${scope === 'this task' ? 'every sub-task of this task' : 'every sub-task of every task'} to sign out (${c.done} of ${c.all}).`;
-  $('#progress').innerHTML = c.all ? `<b>${c.done}</b> of ${c.all} complete` : '';
+  const left = $('#task').options.length - 1;
+  const n = cur && cur.list ? cur.done.filter(Boolean).length : 0, all = cur && cur.list ? cur.list.length : 0, complete = !!(cur && cur.list && n === all);
+  $('#task').disabled = !!(cur && n > 0) || !left;      // the task is fixed once its first sub-task is ticked
+  $('#logout').disabled = !(complete || !left);
+  $('#logoutWhy').textContent = !left ? 'Every task is complete.' : !cur ? 'Choose a task first.' : cur.error ? 'Sign-out waits until the sub-tasks of this task can be loaded.' :
+    !cur.list ? 'Loading sub-tasks…' : complete ? 'Every sub-task is complete; signing out records this task as done.' : `Complete every sub-task of this task to sign out (${n} of ${all}).`;
+  $('#progress').innerHTML = all ? `<b>${n}</b> of ${all} complete` : left ? `${left} task${left === 1 ? '' : 's'} left` : '';
   showTask();
 }
 function showTask() {
-  const v = $('#task').value; $('#taskPanel').hidden = v === '';
-  if (v === '') return;
-  const i = Number(v), s = S[i] || {}, t = tasks[i];
-  $('#taskTitle').textContent = t.name;
-  $('#retryRow').hidden = !s.error;
-  if (s.error) { $('#subtasks').innerHTML = ''; st($('#tstat'), 'bad', `The sub-tasks could not be loaded (${s.error}).`); return; }
-  if (!s.list) { $('#subtasks').innerHTML = ''; st($('#tstat'), '', 'Loading sub-tasks…'); return; }
+  $('#taskPanel').hidden = !cur; if (!cur) return;
+  const t = tasks[cur.i];
+  $('#taskTitle').textContent = t.name; $('#retryRow').hidden = !cur.error;
+  if (cur.error) { $('#subtasks').innerHTML = ''; st($('#tstat'), 'bad', `The sub-tasks could not be loaded (${cur.error}).`); return; }
+  if (!cur.list) { $('#subtasks').innerHTML = ''; st($('#tstat'), '', 'Loading sub-tasks…'); return; }
   st($('#tstat'), '', '');
   const ul = $('#subtasks');
-  if (ul.dataset.task !== v) {       // rebuild only when another task is shown, so ticking keeps focus
-    ul.dataset.task = v;
-    ul.innerHTML = s.list.map((x, k) => `<li><label><input type="checkbox" data-k="${k}" ${s.done[k] ? 'checked' : ''}><span>${esc(x)}</span></label></li>`).join('');
+  if (ul.dataset.task !== String(cur.i)) {       // rebuild only when another task is shown, so ticking keeps focus
+    ul.dataset.task = String(cur.i);
+    ul.innerHTML = cur.list.map((x, k) => `<li><label><input type="checkbox" data-k="${k}"><span>${esc(x)}</span></label></li>`).join('');
   }
 }
-$('#subtasks').addEventListener('change', e => {
-  const k = e.target.dataset.k; if (k == null) return;
-  const s = S[Number($('#task').value)]; s.done[Number(k)] = e.target.checked; refresh();
-});
-$('#task').onchange = () => { $('#subtasks').dataset.task = ''; const v = $('#task').value; if (v !== '') load(Number(v)); refresh(); };
-$('#retry').onclick = () => { const i = Number($('#task').value); S[i] = {}; $('#subtasks').dataset.task = ''; load(i); refresh(); };
+$('#subtasks').addEventListener('change', e => { const k = e.target.dataset.k; if (k == null || !cur || !cur.list) return; cur.done[Number(k)] = e.target.checked; refresh(); });
+$('#task').onchange = () => { const v = $('#task').value; if (v === '') { cur = null; refresh(); } else choose(Number(v)); };
+$('#retry').onclick = () => cur && choose(cur.i);
 
 /* ---------- sign in and out ---------- */
 async function signIn() {
@@ -214,27 +217,30 @@ async function signIn() {
   if (!p) { st($('#lstat'), 'bad', 'Please enter the passkey.'); return; }
   st($('#lstat'), '', 'Checking…'); $('#login').disabled = true;
   try {
-    if (!(await checkPasskey(p))) { st($('#lstat'), 'bad', 'The passkey was not accepted.'); return; }
-    passkey = p; $('#passkey').value = ''; S = {};
-    $('#task').innerHTML = '<option value="">Choose a task…</option>' + tasks.map((t, i) => `<option value="${i}">${esc(t.name)}</option>`).join('');
+    const r = await checkPasskey(p);
+    if (!r.ok) { st($('#lstat'), 'bad', 'The passkey was not accepted.'); return; }
+    passkey = p; $('#passkey').value = ''; cur = null;
+    const done = new Set(r.done), open = tasks.map((t, i) => [t, i]).filter(([t]) => !done.has(t.name));
+    $('#task').innerHTML = `<option value="">${open.length ? 'Choose a task…' : 'Every task is complete'}</option>` + open.map(([t, i]) => `<option value="${i}">${esc(t.name)}</option>`).join('');
     $('#taskBar').hidden = false; $('#logoutPanel').hidden = false; $('#loginPanel').hidden = true;
-    st($('#lstat'), 'ok', '');
-    if (CFG.logoutRule !== 'selected') {           // sign-out depends on every task, so every list is loaded, four at a time
-      let next = 0; const worker = async () => { while (next < tasks.length && passkey) await load(next++); };
-      Promise.all([0, 1, 2, 3].map(worker));
-    }
-    refresh();
+    st($('#lstat'), 'ok', ''); refresh();
   } catch (e) { st($('#lstat'), 'bad', e.message || String(e)); }
   finally { $('#login').disabled = false; }
 }
 $('#login').onclick = signIn;
 $('#passkey').addEventListener('keydown', e => { if (e.key === 'Enter') signIn(); });
-$('#logout').onclick = () => {
+$('#logout').onclick = async () => {
   if ($('#logout').disabled) return;
-  passkey = ''; S = {};
+  const finished = cur && cur.list && cur.done.every(Boolean) ? cur : null;
+  if (finished) {
+    $('#logout').disabled = true; $('#logoutWhy').textContent = 'Recording the task as done…';
+    try { await recordComplete(tasks[finished.i], finished.list); }
+    catch (e) { $('#logout').disabled = false; $('#logoutWhy').textContent = `The task could not be recorded as done (${e.message || e}); you remain signed in. Press Sign out to try again.`; return; }
+  }
+  passkey = ''; cur = null;
   $('#taskBar').hidden = $('#logoutPanel').hidden = $('#taskPanel').hidden = true; $('#loginPanel').hidden = false;
-  $('#task').innerHTML = '<option value="">Choose a task…</option>'; $('#subtasks').innerHTML = ''; $('#subtasks').dataset.task = '';
-  st($('#lstat'), 'ok', 'Signed out.'); $('#passkey').focus();
+  $('#task').innerHTML = '<option value="">Choose a task…</option>'; $('#task').disabled = false; $('#subtasks').innerHTML = ''; $('#subtasks').dataset.task = '';
+  st($('#lstat'), 'ok', finished ? `Signed out. "${tasks[finished.i].name}" is recorded as done.` : 'Signed out.'); $('#passkey').focus();
 };
 
 /* ---------- messaging ---------- */
@@ -257,7 +263,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 
 /* ---------- build stamp ---------- */
 (() => {
-  const APP_BUILD = '2026.11.23-0536';   // page design build, stamped at each commit
+  const APP_BUILD = '2026.11.23-0555';   // page design build, stamped at each commit
   const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   const slot = document.getElementById('updatedStamp');
   if (slot) slot.textContent = 'Page design build ' + APP_BUILD + (CFG.builder_build ? ' · builder build ' + CFG.builder_build : '') + ' · made ' + show(CFG.made);

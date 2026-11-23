@@ -30,7 +30,7 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
 <body>
 <header>
   <h1>CCN Terminal — Builder</h1>
-  <div class="sub">Describe an app here and the builder writes it as one standalone page: a pulldown of tasks, a passkey sign-in, a sign-out that waits until every sub-task is ticked, and a message box. Each task's sub-tasks are fetched from its own address when the task is chosen.</div>
+  <div class="sub">Describe an app here and the builder writes it as one standalone page: a pulldown of tasks, a passkey sign-in, one task per session, with a sign-out that waits until every sub-task of it is ticked, and a message box. Each task's sub-tasks are fetched from its own address when the task is chosen.</div>
 </header>
 <main>
   <section class="panel">
@@ -55,7 +55,7 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
   <section class="panel">
     <h2>3 · Sign-in and sign-out</h2>
     <div class="choice">
-      <label><input type="radio" name="authMode" value="remote" checked><span><b>Passkey checked by a separate service (recommended).</b> <span class="mute">The page POSTs <code>{"passkey": …, "app": …}</code> as JSON and expects <code>{"ok": true}</code> in reply. The service should also guard the sub-task addresses.</span></span></label>
+      <label><input type="radio" name="authMode" value="remote" checked><span><b>Passkey checked by a separate service (recommended).</b> <span class="mute">The page POSTs JSON to it at sign-in and at sign-out, and the service keeps which tasks are done (see the README). The service should also guard the sub-task addresses.</span></span></label>
       <label><input type="radio" name="authMode" value="hash"><span><b>Passkey checked in the page (for tests only).</b> <span class="mute">Only a salted SHA-256 hash is written into the page, but the task addresses remain readable in its source, so this is a gate, not protection.</span></span></label>
     </div>
     <div class="row" id="hashFields">
@@ -64,8 +64,7 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
     </div>
     <div class="mute" id="keptHash" hidden>The loaded specification already holds a passkey hash; leave both boxes empty to keep it.</div>
     <div id="remoteFields" hidden><label class="f" for="authUrl">Address of the passkey service</label><input id="authUrl" type="url" spellcheck="false" placeholder="https://www.wolframcloud.com/obj/…/CheckPasskey"></div>
-    <label class="f" for="logoutRule">Sign-out is allowed once</label>
-    <select id="logoutRule"><option value="all">every sub-task of every task is ticked</option><option value="selected">every sub-task of the chosen task is ticked</option></select>
+    <div class="mute" style="margin-top:8px">One task per session: after signing in, the person chooses one task, and may sign out only once every sub-task of it is ticked. Signing out records the task as done, so the next sign-in offers one task fewer. With the service, the service keeps that record (see the README); with the in-page check, this device does.</div>
     <div class="choice" style="margin-top:8px"><label><input type="checkbox" id="sendPasskey"><span>Send the passkey with each sub-task request, as <code>Authorization: Bearer …</code> <span class="mute">(only for addresses that require it; they must then allow that header in CORS)</span></span></label></div>
   </section>
 
@@ -85,7 +84,7 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
 
 <script>
 'use strict';
-const APP_BUILD = '2026.11.23-0549';   // build number, stamped at each commit
+const APP_BUILD = '2026.11.23-0555';   // build number, stamped at each commit
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 const st = (el, cls, text) => { el.className = 'st ' + (cls || ''); el.textContent = text || ''; };
@@ -169,14 +168,14 @@ async function makeSpec() {
     if (pr || !/^https?:\/\//.test(u)) errs.push('The passkey service needs a full http or https address.'); else auth = { mode: 'remote', url: u };
   }
   return { errs, spec: { kind: 'ccn-terminal', appName, shortName: $('#shortName').value.trim() || appName.slice(0, 30), folder, tasks: tasks.map(t => ({ name: t.name, url: t.url })), source: { tasks: $('#tasks').value, pattern: $('#pattern').value.trim() },
-    auth, logoutRule: $('#logoutRule').value, sendPasskey: $('#sendPasskey').checked } };
+    auth, sendPasskey: $('#sendPasskey').checked } };
 }
 function applySpec(s) {
   if (!s || s.kind !== 'ccn-terminal') throw new Error('This is not a Terminal specification.');
   $('#appName').value = s.appName || ''; $('#shortName').value = s.shortName || ''; $('#folder').value = s.folder || '';
   $('#tasks').value = s.source ? s.source.tasks : (s.tasks || []).map(t => `${t.name} | ${t.url}`).join('\n');
   $('#pattern').value = s.source ? s.source.pattern || '' : '';
-  $('#logoutRule').value = s.logoutRule === 'selected' ? 'selected' : 'all'; $('#sendPasskey').checked = !!s.sendPasskey;
+  $('#sendPasskey').checked = !!s.sendPasskey;
   keptAuth = s.auth && s.auth.mode === 'hash' && /^[0-9a-f]{64}$/.test(s.auth.hash) ? s.auth : null;
   document.querySelector(`input[name=authMode][value=${s.auth && s.auth.mode === 'hash' ? 'hash' : 'remote'}]`).checked = true;
   $('#authUrl').value = s.auth && s.auth.mode === 'remote' ? s.auth.url : ''; $('#pk1').value = $('#pk2').value = '';
@@ -192,7 +191,7 @@ async function template() {
   return TPL = await r.text();
 }
 function fillTemplate(tpl, spec, opts) {
-  const cfg = { id: opts.id, made: opts.made, appName: spec.appName, short: spec.shortName, tasks: spec.tasks, auth: spec.auth, logoutRule: spec.logoutRule, sendPasskey: spec.sendPasskey, builder_build: APP_BUILD };
+  const cfg = { id: opts.id, made: opts.made, appName: spec.appName, short: spec.shortName, tasks: spec.tasks, auth: spec.auth, sendPasskey: spec.sendPasskey, builder_build: APP_BUILD };
   if (opts.mock) cfg.mock = true;
   const json = JSON.stringify(cfg).replace(/</g, '\\u003c');
   return { cfg, page: tpl.split('__APP_NAME__').join(esc(spec.appName)).replace('__CONFIG__', () => json) };
@@ -267,7 +266,7 @@ function notesFor(c) {
   const L = [`# ${c.appName} — Production notes`, '', `*Made with the CCN Terminal builder · ${c.made.slice(0, 16).replace('T', ' ')} UTC · builder build ${APP_BUILD}*`, '', '## Tasks', '', '| # | Task | Address of its sub-tasks |', '|---|---|---|'];
   c.tasks.forEach((t, i) => L.push(`| ${i + 1} | ${t.name.replace(/\|/g, '\\|')} | ${t.url} |`));
   L.push('', '## Sign-in and sign-out', '', c.auth.mode === 'hash' ? '- The passkey is checked in the page against a salted SHA-256 hash; the passkey itself is not in the page.' : `- The passkey is checked by the service at ${c.auth.url}.`,
-    `- Sign-out is allowed once every sub-task of ${c.logoutRule === 'selected' ? 'the chosen task' : 'every task'} is ticked.`, `- The passkey is ${c.sendPasskey ? '' : 'not '}sent with sub-task requests.`, '- Messaging is a placeholder (\`sendMessage\`), not yet connected.', '', '---', '© Computational Classnotes · CC BY-NC-SA 4.0', '');
+    '- One task per session: sign-out is allowed once every sub-task of the chosen task is ticked, and records that task as done.', `- The passkey is ${c.sendPasskey ? '' : 'not '}sent with sub-task requests.`, '- Messaging is a placeholder (\`sendMessage\`), not yet connected.', '', '---', '© Computational Classnotes · CC BY-NC-SA 4.0', '');
   return L.join('\n');
 }
 function readmeFor(c) { return `# ${c.appName}\n\nA CCN Terminal page. Open \`index.html\` (best from an https:// site such as GitHub Pages, so that Install works). Add \`?mock=1\` to the address for canned sub-tasks and no requests.\n\n- \`index.html\` — the page (everything built in; sub-tasks are fetched from each task's address)\n- \`notes.md\` — production notes\n- \`terminal-data.json\` — the page's settings, for reuse\n- \`manifest.webmanifest\`, \`sw.js\`, \`icons/\` — install files\n\n© Computational Classnotes · CC BY-NC-SA 4.0\n`; }
@@ -295,7 +294,7 @@ function makeZip(files) {      // files: [{name, data: Uint8Array}], stored with
 
 /* freshness: when this copy was last updated, and a reload offer when a newer copy is online */
 (() => {
-  const UPDATED = '2026-11-23T05:49:00Z';
+  const UPDATED = '2026-11-23T05:55:00Z';
   const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   const PUBLISHED = /^https?:/.test(location.protocol) && !isNaN(Date.parse(document.lastModified)) ? document.lastModified : UPDATED;
   const slot = document.getElementById('updatedStamp'); if (slot) slot.textContent = 'Build ' + APP_BUILD + ' · Updated ' + show(PUBLISHED);
