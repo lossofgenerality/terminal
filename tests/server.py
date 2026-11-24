@@ -5,6 +5,8 @@
 # © Computational Classnotes · CC BY-NC-SA 4.0
 import http.server, json, sys, functools, base64, urllib.parse
 JOBS = {'SJ': {'id': 'SJ', 'name': 'Service job', 'specifics': '**From the service.**', 'subtasks': [{'id': 'SJ-01', 'text': 'First'}, {'id': 'SJ-02', 'text': 'Second'}]}}
+import secrets, hashlib
+SESSIONS = {}   # hash of token -> worker, as the service keeps them
 DONE = {}; STATE = {'fail_complete': False, 'jobs': False, 'offline': False}; SEEN_STATIONS = set(); CLICKS = []
 class H(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
@@ -23,12 +25,20 @@ class H(http.server.SimpleHTTPRequestHandler):
             b = json.loads(base64.b64decode(urllib.parse.parse_qs(raw.decode())['payload_b64'][0]).decode('utf-8'))
         else: b = json.loads(raw or b'{}')
         if 'station' in b: SEEN_STATIONS.add(b['station'])
+        th = hashlib.sha256(str(b.get('token')).encode()).hexdigest() if b.get('token') else None
+        signed = (th in SESSIONS) if th else b.get('passkey') == 'service-pass'
         if self.path == '/svc/offline': STATE['offline'] = b.get('on', False); out = {'ok': True}
-        elif b.get('action') in ('tick', 'event'): CLICKS.append(b); out = {'ok': True}
         elif self.path == '/svc/fail': STATE['fail_complete'] = b.get('on', False); out = {'ok': True}
         elif self.path == '/svc/jobs': STATE['jobs'] = b.get('on', False); out = {'ok': True}
-        elif b.get('passkey') != 'service-pass': out = {'ok': False}
-        elif b.get('action') == 'signin': out = {'ok': True, 'done': DONE.get(b['page'], []), **({'jobs': [{'id': j['id'], 'name': j['name']} for j in JOBS.values()]} if STATE['jobs'] else {})}
+        elif b.get('action') == 'signout': SESSIONS.pop(th, None); CLICKS.append(b); out = {'ok': True}
+        elif b.get('action') == 'signin':
+            if b.get('passkey') != 'service-pass': out = {'ok': False}
+            else:
+                tok = secrets.token_hex(32); SESSIONS[hashlib.sha256(tok.encode()).hexdigest()] = 'worker'
+                out = {'ok': True, 'token': tok, 'done': DONE.get(b['page'], []), **({'jobs': [{'id': j['id'], 'name': j['name']} for j in JOBS.values()]} if STATE['jobs'] else {})}
+        elif b.get('action') == 'event' and not b.get('token') and not b.get('passkey'): CLICKS.append(b); out = {'ok': True}
+        elif not signed: out = {'ok': False, 'message': 'Please sign in again.'}
+        elif b.get('action') in ('tick', 'event'): CLICKS.append(b); out = {'ok': True}
         elif b.get('action') == 'job': out = {'ok': True, **JOBS[b['job']]} if b.get('job') in JOBS else {'ok': False, 'message': 'no such job'}
         elif b.get('action') == 'complete':
             out = {'ok': False, 'message': 'stand-in refused'} if STATE['fail_complete'] else (DONE.setdefault(b['page'], []).append(b.get('job') or b['task']) or {'ok': True})

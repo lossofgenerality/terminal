@@ -41,7 +41,9 @@ async def main():
             for bx in boxes[1:]: await bx.check()
             await t.wait_for_timeout(800); c=[x for x in await clicks(t) if x['action']=='tick']
             ok('every tick and untick sent, in order', [(x['sub'],x['checked']) for x in c]==[(ids[0],True),(ids[0],False),(ids[0],True)]+[(i,True) for i in ids[1:]])
-            ok('ticks carry time, station, job, passkey', all(x['at'] and x['station']=='Mail-Room1' and x['task']==JOB and x['passkey']=='service-pass' for x in c))
+            ok('ticks carry time, station, job and the session token, never the passkey', all(x['at'] and x['station']=='Mail-Room1' and x['task']==JOB and len(x.get('token',''))==64 and 'passkey' not in x for x in c))
+            ok('every request carries its context: zone, local time, device', all(x.get('ctx',{}).get('tz') and x['ctx'].get('local') and x['ctx'].get('device') for x in c))
+            ok('the passkey is gone from the page once signed in', await t.evaluate("typeof passkey==='string' ? passkey==='' : true"))
             ok('no waiting sign when all sent', await t.is_hidden('#outbox'))
             # Sign out, then Cancel
             await t.click('#logout'); await t.wait_for_selector('#sure:not([hidden])'); await t.click('#sureNo'); await t.wait_for_timeout(400)
@@ -61,13 +63,16 @@ async def main():
             ok('an unconfirmed tick is unticked again, sign-out stays shut', not await boxes[2].is_checked() and await t.is_disabled('#logout'))
             await offline(t,False); await boxes[2].check(); await t.wait_for_function("document.querySelectorAll('#subtasks .tconf')[2].textContent==='Confirmed'", timeout=7000)
             ok('pressed again: Confirmed, sign-out open', await boxes[2].is_checked() and await t.is_enabled('#logout'))
+            ok('a tick pressed again is marked retry', [x.get('retry') for x in (await clicks(t)) if x.get('action')=='tick'][-1] is True)
             # sign-out: its click waits for the connection, then sign-out completes
             n1=len(await clicks(t)); await offline(t,True)
             await t.click('#logout'); await t.wait_for_selector('#sure:not([hidden])'); await t.click('#sureYes'); await t.wait_for_timeout(600)
             ok('offline: sign-out waits, still signed in', await t.is_visible('#taskBar') and 'sign-out completes as soon as' in await t.inner_text('#logoutWhy') and 'Waiting to send 1 click' in await t.inner_text('#outbox'))
             await offline(t,False); await t.wait_for_selector('#loginPanel:not([hidden])', timeout=12000)
-            ok('back online: sign-out arrives, then the job is recorded', [x.get('kind') for x in (await clicks(t))[n1:]]==['signout-confirm'])
+            ok('back online: sign-out arrives, then the job is recorded', [x.get('kind') for x in (await clicks(t))[n1:] if x.get('action')=='event']==['signout-confirm'])
             ok('signed out, Confirmed', 'is recorded as done' in await t.inner_text('#lstat') and 'Confirmed' in await t.inner_text('#lstat') and await t.is_hidden('#outbox'))
+            await t.wait_for_timeout(500); last=(await clicks(t))[-1]
+            ok('sign-out ends the session token at the service', last.get('action')=='signout' and len(last.get('token',''))==64)
             await t.fill('#passkey','service-pass'); await t.press('#passkey','Enter'); await t.wait_for_selector('#taskBar:not([hidden])')
             ok('one job fewer at the next sign-in', await t.eval_on_selector('#task','s=>[...s.options].slice(1).map(o=>o.textContent)')==['Label printer'])
             # test mode: the page plays the service

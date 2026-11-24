@@ -131,7 +131,7 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
 
 <script>
 'use strict';
-const APP_BUILD = '2026.11.24-0430';   // build number, stamped at each commit
+const APP_BUILD = '2026.11.24-0540';   // build number, stamped at each commit
 /* where the service is: the address below, or ?svc=https://… ; ?mock=1 keeps the jobs in this browser instead (author key: 123) */
 const SERVICE = new URLSearchParams(location.search).get('svc') || 'https://www.wolframcloud.com/obj/ccn2/TerminalKernel';
 const MOCK = /[?&]mock=1/.test(location.search);
@@ -221,7 +221,9 @@ document.execCommand('styleWithCSS', false, false);
 document.execCommand('defaultParagraphSeparator', false, 'div');
 
 /* ---------- the job being edited ---------- */
-let job = blank(), savedJSON = '', jobsList = [], authorKey = '';
+let job = blank(), savedJSON = '', jobsList = [], authorKey = '', authorToken = '';
+/* the author key is sent once, at sign-in; later requests carry the session token the service returns (a service without tokens: the key, as before) */
+const acred = () => authorToken ? { authorToken } : { authorKey };
 function blank() { return { id: '', name: '', specifics: '', subtasks: [{ id: '', text: '' }] }; }
 function readForm() {
   job.id = $('#jobId').value.trim(); job.name = $('#jobName').value.trim(); job.specifics = specValue();
@@ -272,6 +274,8 @@ function check() {
 }
 
 /* ---------- the service ----------
+   {action:"authorSignin", authorKey}        -> {ok:true, token}   (then authorToken in place of authorKey below)
+   {action:"authorSignout", authorToken}     -> {ok:true}
    {action:"listJobs", authorKey}            -> {ok:true, jobs:[{id, name}]}
    {action:"getJob",   authorKey, id}        -> {ok:true, job:{id, name, specifics, subtasks:[{id, text}]}}
    {action:"saveJob",  authorKey, job, was}  -> {ok:true}   (was: the ID it had when opened, so that renaming replaces it)
@@ -284,7 +288,9 @@ function mockStore() {
 async function svc(body) {
   if (MOCK) {
     await new Promise(r => setTimeout(r, 200));
-    if (body.authorKey !== '123') return { ok: false, message: 'The author key was not accepted.' };
+    const MT = 'f'.repeat(64);       // test mode's stand-in token
+    if (body.action === 'authorSignin') return body.authorKey === '123' ? { ok: true, token: MT } : { ok: false, message: 'The author key was not accepted.' };
+    if (body.authorKey !== '123' && body.authorToken !== MT) return { ok: false, message: 'The author key was not accepted.' };
     const S = mockStore(), save = () => { try { localStorage.setItem(MOCK_KEY, JSON.stringify(S)); } catch (e) {} };
     if (body.action === 'listJobs') return { ok: true, jobs: Object.values(S).map(j => ({ id: j.id, name: j.name })) };
     if (body.action === 'getJob') return S[body.id] ? { ok: true, job: S[body.id] } : { ok: false, message: 'No such job.' };
@@ -301,7 +307,7 @@ async function svc(body) {
 let loadedId = '';
 async function refreshList() {
   st($('#lstat'), '', 'Loading…');
-  try { const j = await svc({ action: 'listJobs', authorKey }); if (!j.ok) throw new Error(j.message || 'refused');
+  try { const j = await svc({ action: 'listJobs', ...acred() }); if (!j.ok) throw new Error(j.message || 'refused');
     jobsList = j.jobs || []; drawList(); st($('#lstat'), '', jobsList.length ? '' : 'No jobs yet.'); }
   catch (e) { st($('#lstat'), 'bad', e.message || String(e)); }
 }
@@ -313,7 +319,7 @@ function confirmLeave() { return window.confirm('This job has changes that are n
 $('#jobs').addEventListener('click', async e => {
   const b = e.target.closest('button'); if (!b || !unsavedOK()) return;
   st($('#estat'), '', 'Opening…');
-  try { const j = await svc({ action: 'getJob', authorKey, id: b.dataset.id }); if (!j.ok) throw new Error(j.message || 'refused');
+  try { const j = await svc({ action: 'getJob', ...acred(), id: b.dataset.id }); if (!j.ok) throw new Error(j.message || 'refused');
     job = JSON.parse(JSON.stringify(j.job)); if (!job.subtasks.length) job.subtasks.push({ id: '', text: '' });
     loadedId = job.id; fillForm(); readForm(); savedJSON = JSON.stringify(clean()); markDirty(); drawList(); st($('#estat'), '', ''); $('#errs').hidden = true; }
   catch (e) { st($('#estat'), 'bad', e.message || String(e)); }
@@ -322,7 +328,7 @@ $('#newJob').onclick = () => { if (!unsavedOK()) return; job = blank(); loadedId
 $('#save').onclick = async () => {
   const c = check(); if (!c) { st($('#estat'), 'bad', 'Please correct the points above.'); return; }
   st($('#estat'), '', 'Saving…'); $('#save').disabled = true;
-  try { const j = await svc({ action: 'saveJob', authorKey, job: c, was: loadedId || undefined }); if (!j.ok) throw new Error(j.message || 'the service refused it');
+  try { const j = await svc({ action: 'saveJob', ...acred(), job: c, was: loadedId || undefined }); if (!j.ok) throw new Error(j.message || 'the service refused it');
     loadedId = c.id; savedJSON = JSON.stringify(c); markDirty(); await refreshList(); st($('#estat'), MOCK ? 'warn' : 'ok', MOCK ? `Saved ${c.id} — ${c.name} in this browser only (test mode). Nothing was sent to the Wolfram Cloud. The test-mode terminal in this browser shows it (the demo, passkey 123); real terminals do not.` : `Saved ${c.id} — ${c.name} to the service. The terminals will show it from their next sign-in.`); }
   catch (e) { st($('#estat'), 'bad', 'Not saved: ' + (e.message || e)); }
   finally { $('#save').disabled = false; }
@@ -337,13 +343,15 @@ $('#dl').onclick = () => {
 async function signIn() {
   const k = keyClean($('#key').value); if (!k) { st($('#sstat'), 'bad', 'Please enter the author key.'); return; }
   st($('#sstat'), '', 'Checking…');
-  try { const j = await svc({ action: 'listJobs', authorKey: k }); if (!j.ok) { st($('#sstat'), 'bad', j.message || 'The author key was not accepted.'); return; }
-    authorKey = k; $('#key').value = ''; jobsList = j.jobs || []; drawList(); $('#signPanel').hidden = true; $('#work').hidden = false;
+  try { const a = await svc({ action: 'authorSignin', authorKey: k });
+    const tok = a.ok && typeof a.token === 'string' && /^[0-9a-f]{64}$/.test(a.token) ? a.token : '';
+    const j = await svc({ action: 'listJobs', ...(tok ? { authorToken: tok } : { authorKey: k }) }); if (!j.ok) { st($('#sstat'), 'bad', j.message || 'The author key was not accepted.'); return; }
+    authorToken = tok; authorKey = tok ? '' : k; $('#key').value = ''; jobsList = j.jobs || []; drawList(); $('#signPanel').hidden = true; $('#work').hidden = false;
     job = blank(); loadedId = ''; fillForm(); readForm(); savedJSON = JSON.stringify(clean()); markDirty(); st($('#lstat'), '', jobsList.length ? '' : 'No jobs yet.'); }
   catch (e) { st($('#sstat'), 'bad', e.message || String(e)); }
 }
 $('#signIn').onclick = signIn; $('#key').addEventListener('keydown', e => { if (e.key === 'Enter') signIn(); });
-$('#signOut').onclick = () => { if (!unsavedOK()) return; authorKey = ''; $('#work').hidden = true; $('#signPanel').hidden = false; st($('#sstat'), 'ok', 'Signed out.'); };
+$('#signOut').onclick = () => { if (!unsavedOK()) return; if (authorToken && !MOCK) svc({ action: 'authorSignout', authorToken }).catch(() => {}); authorKey = ''; authorToken = ''; $('#work').hidden = true; $('#signPanel').hidden = false; st($('#sstat'), 'ok', 'Signed out.'); };
 addEventListener('beforeunload', e => { if (authorKey && !$('#dirty').hidden) { e.preventDefault(); e.returnValue = ''; } });
 if (MOCK) $('#save').textContent = 'Save (test mode: this browser only)';
 $('#svcLine').innerHTML = MOCK ? '<span style="color:var(--warn)">Test mode: the jobs are kept in this browser only. The author key is 123.</span>' : 'Service: <code>' + esc(SERVICE) + '</code>';

@@ -191,11 +191,11 @@ async function deliver(m) {
     mockSvc.box.push({ mid: m.mid, text: m.text, at: m.at, signedIn: m.signedIn, task: m.task, station: station(), status: 'delivered', reply: '' }); renderMock(); return;
   }
   if (!hasService()) throw new Error('no messaging service is configured for this page');
-  const j = await service({ action: 'message', conv, mid: m.mid, text: m.text, signedIn: m.signedIn, task: m.task, ...(passkey ? { passkey } : {}) });
+  const j = await service({ action: 'message', conv, mid: m.mid, text: m.text, signedIn: m.signedIn, task: m.task, ...cred() });
   if (!accepted(j)) throw new Error(j.message || j.Message || 'the service did not accept it');
 }
 async function sendMessage(text) {
-  const m = { mid: rid(), text, at: new Date().toISOString(), status: 'sending', reply: '', signedIn: !!passkey, task: passkey && cur ? tasks[cur.i].name : '' };
+  const m = { mid: rid(), text, at: new Date().toISOString(), status: 'sending', reply: '', signedIn, task: signedIn && cur ? tasks[cur.i].name : '' };
   msgs.push(m); renderMsgs();
   try { await deliver(m); m.status = 'delivered'; m.error = ''; } catch (e) { m.status = 'failed'; m.error = e.message || String(e); }
   saveMsgs(); renderMsgs();
@@ -242,7 +242,7 @@ async function emSend() {
       mockSvc.em = { eid: em.eid, at: em.at, signedIn: em.signedIn, task: em.task, station: station(), status: 'delivered' }; renderMock();
     } else {
       if (!hasService()) throw new Error('no service is configured for this page');
-      const j = await service({ action: 'emergency', conv, eid: em.eid, at: em.at, signedIn: em.signedIn, task: em.task, ...(passkey ? { passkey } : {}) });
+      const j = await service({ action: 'emergency', conv, eid: em.eid, at: em.at, signedIn: em.signedIn, task: em.task, ...cred() });
       if (!accepted(j)) throw new Error(j.message || j.Message || 'the service did not accept it');
     }
     em.status = 'delivered'; em.error = ''; clearInterval(emTimer); emTimer = null;
@@ -265,7 +265,7 @@ function renderEm() {
 }
 $('#emergency').onclick = () => {
   if (em && em.status !== 'handled') { if (em.status === 'failed') emSend(); return; }    // one emergency at a time; a press while failed retries at once
-  em = { eid: rid(), at: new Date().toISOString(), status: 'sending', signedIn: !!passkey, task: passkey && cur ? tasks[cur.i].name : '' };
+  em = { eid: rid(), at: new Date().toISOString(), status: 'sending', signedIn, task: signedIn && cur ? tasks[cur.i].name : '' };
   emSend(); $('#emBox').scrollIntoView({ block: 'nearest' });
 };
 
@@ -342,10 +342,15 @@ async function sha256Hex(text) {
 
 /* ---------- the passkey, and which tasks are already complete ----------
    service protocol (JSON, POST to auth.url as payload_b64; see the wire below):
-     sign-in   {action:"signin",   passkey, app, page}              -> {ok:true, done:["task name", …]}   (done optional)
+     sign-in   {action:"signin",   passkey, app, page}              -> {ok:true, token, done:["task name", …]}   (token, done optional)
+     sign-out  {action:"signout",  token}                             -> {ok:true}   (ends the token)
      sign-out  {action:"complete", passkey, app, page, task, subtasks} -> {ok:true}
    with the in-page check, completed tasks are remembered on this device only */
-let passkey = '';     // held in memory only while signed in, never stored
+/* the passkey is sent once, at sign-in; the service answers with a session token, which every later click carries instead.
+   The token is random, kept by the service only as a hash, and ends at sign-out or after some hours. The passkey is then
+   dropped from memory. (A service without tokens: the passkey is kept in memory while signed in, as before.) Never stored. */
+let passkey = '', token = '', signedIn = false;
+const cred = () => token ? { token } : passkey ? { passkey } : {};
 const DONE_KEY = 'ccn-terminal-done-' + (CFG.id || CFG.appName);
 const localDone = () => { try { const v = JSON.parse(localStorage.getItem(DONE_KEY) || '[]'); return Array.isArray(v) ? v.map(String) : []; } catch (e) { return []; } };
 const saveLocalDone = list => { try { localStorage.setItem(DONE_KEY, JSON.stringify(list)); } catch (e) {} };
@@ -353,9 +358,25 @@ const saveLocalDone = list => { try { localStorage.setItem(DONE_KEY, JSON.string
    base64 keeps every language intact through the Wolfram Cloud; a form POST needs no CORS preflight */
 const b64enc = s => { const b = new TextEncoder().encode(s); let x = ''; for (let i = 0; i < b.length; i += 0x8000) x += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(x); };
 const b64dec = s => new TextDecoder().decode(Uint8Array.from(atob(s), c => c.charCodeAt(0)));
+/* the context sent with every request, for the Journal: time zone, local time, device, and the position where allowed.
+   The IP address is read by the service itself. The position is asked for once, when the station is named. */
+const GPS_KEY = 'ccn-terminal-gps-' + (CFG.id || CFG.appName);
+function context() {
+  let tz = ''; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
+  const d = new Date(), pad = n => String(n).padStart(2, '0');
+  const local = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  const ua = navigator.userAgent, kind = /iPad|Tablet|Android(?!.*Mobile)/i.test(ua) ? 'tablet' : /Mobi|iPhone|Android/i.test(ua) ? 'phone' : 'computer';
+  const browser = (ua.match(/(Edg|OPR|Chrome|Firefox|Version)\/(\d+)/) || [])[0] || '';
+  let gps = null; try { gps = JSON.parse(localStorage.getItem(GPS_KEY) || 'null'); } catch (e) {}
+  return { tz, local, device: `${kind} · ${browser.replace('Version', 'Safari')} · ${screen.width}×${screen.height}`, ...(gps ? { gps } : {}) };
+}
+function askPosition() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(p => { try { localStorage.setItem(GPS_KEY, JSON.stringify({ lat: +p.coords.latitude.toFixed(5), lon: +p.coords.longitude.toFixed(5), acc: Math.round(p.coords.accuracy), at: new Date().toISOString() })); } catch (e) {} }, () => {}, { timeout: 15000, maximumAge: 3600000 });
+}
 async function service(body, signal) {
   const a = CFG.auth;
-  const r = await fetch(a.url, { method: 'POST', signal, body: new URLSearchParams({ payload_b64: b64enc(JSON.stringify({ conv, ...body, app: CFG.appName, page: CFG.id, station: station() })) }) });
+  const r = await fetch(a.url, { method: 'POST', signal, body: new URLSearchParams({ payload_b64: b64enc(JSON.stringify({ conv, ...body, app: CFG.appName, page: CFG.id, station: station(), ctx: context() })) }) });
   let j = null; try { j = await r.json(); if (j && typeof j.reply_b64 === 'string') j = JSON.parse(b64dec(j.reply_b64)); } catch (e) { j = null; }
   if (!j || typeof j !== 'object') throw new Error(`Unreadable reply from the service (HTTP ${r.status}).`);
   return j;
@@ -371,7 +392,7 @@ async function service(body, signal) {
 const outbox = []; let outBusy = false, outTimer = null, outErr = '', outWaiters = [];
 function report(body, onOk) {
   if (!MOCK && !hasService()) return;
-  outbox.push({ ...body, at: body.at || new Date().toISOString(), ...(passkey ? { passkey } : {}), ...(onOk ? { onOk } : {}) });
+  outbox.push({ ...body, at: body.at || new Date().toISOString(), ...cred(), ...(onOk ? { onOk } : {}) });
   renderOutbox(); pump();
 }
 async function pump() {
@@ -398,13 +419,13 @@ async function checkPasskey(p) {        // -> { ok, done: [task names] }
     if (MOCK) return { ok: p === '123', done: localDone(), jobs: authoredJobs() };
     const j = await service({ action: 'signin', passkey: p });
     const jobs = Array.isArray(j.jobs) ? j.jobs.filter(x => x && x.id != null && x.name).map(x => ({ id: String(x.id), name: String(x.name), from: 'service' })) : null;
-    return { ok: accepted(j), done: Array.isArray(j.done) ? j.done.map(String) : localDone(), jobs };
+    return { ok: accepted(j), done: Array.isArray(j.done) ? j.done.map(String) : localDone(), jobs, token: typeof j.token === 'string' && /^[0-9a-f]{64}$/.test(j.token) ? j.token : '' };
   }
   throw new Error('This page has no passkey check configured.');
 }
 async function recordComplete(t, list) {
   const a = CFG.auth || {};
-  if (a.mode === 'remote' && !MOCK) { const j = await service({ action: 'complete', passkey, task: t.name, ...(t.id ? { job: t.id } : {}), subtasks: list }); if (!accepted(j)) throw new Error(j.message || j.Message || 'the service did not record it'); }
+  if (a.mode === 'remote' && !MOCK) { const j = await service({ action: 'complete', ...cred(), task: t.name, ...(t.id ? { job: t.id } : {}), subtasks: list }); if (!accepted(j)) throw new Error(j.message || j.Message || 'the service did not record it'); }
   const d = localDone(), key = t.id || t.name; if (!d.includes(key)) { d.push(key); saveLocalDone(d); }
 }
 
@@ -468,13 +489,13 @@ async function fetchJob(t) {
     return { specifics: String(j.specifics || ''), list };
   }
   if (t.from === 'service') {         // the job's contents come from the service when it is chosen
-    const j = await service({ action: 'job', job: t.id, passkey });
+    const j = await service({ action: 'job', job: t.id, ...cred() });
     if (!accepted(j)) throw new Error(j.message || j.Message || 'the service refused it');
     const list = parseSubtasks(JSON.stringify(j.subtasks || [])); if (!list.length) throw new Error('the reply held no sub-tasks');
     return { specifics: String(j.specifics || ''), list };
   }
   if (MOCK) { await new Promise(r => setTimeout(r, 150)); return { specifics: `**${t.name}**: the specifics of this job, as written in the job-authoring tool.\n\nTest mode shows canned text here. In real use this box holds the job's full instructions: what to check, in what order, safety notes, and whom to call. It scrolls when the text is long, and the worker cannot change it.\n\n[red]**Wear safety boots.**[/red] *Report anything unusual.*\n\n- Read these specifics.\n- Carry out each sub-task below.\n- [green]Tick each one[/green] as it is done.`, list: [1, 2, 3].map(i => ({ id: 'T-' + (100 + i), text: `${t.name}: sub-task ${i}` })) }; }
-  const headers = CFG.sendPasskey ? { Authorization: 'Bearer ' + passkey } : {};
+  const headers = CFG.sendPasskey ? { Authorization: 'Bearer ' + (token || passkey) } : {};
   const r = await fetch(t.url, { headers, cache: 'no-store' });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const job = parseJob(await r.text());
@@ -492,7 +513,7 @@ function choose(i) {
   refresh();
 }
 function refresh() {
-  if (!passkey) return;
+  if (!signedIn) return;
   const left = $('#task').options.length - 1;
   const n = cur && cur.list ? cur.done.filter(Boolean).length : 0, all = cur && cur.list ? cur.list.length : 0, ticked = !!(cur && cur.list && n === all);
   const unconfirmed = ticked && cur.sent.some(x => !x || x.state !== 'ok'), complete = ticked && !unconfirmed;     // every tick Confirmed by the service
@@ -528,12 +549,12 @@ function paintTick(k) {
   el.innerHTML = !s || s.local ? '' : s.state === 'ok' ? CONF : s.state === 'again' ? AGAIN : '';
 }
 async function sendTick(k, checked) {
-  const c = cur, t = tasks[c.i], was = c.done[k], s = c.sent[k] = { state: 'sending', checked, was };
+  const c = cur, t = tasks[c.i], was = c.done[k], retry = !!(c.sent[k] && c.sent[k].state === 'again'), s = c.sent[k] = { state: 'sending', checked, was };
   c.done[k] = checked;
   if (!MOCK && !hasService()) { s.state = 'ok'; s.local = true; paintTick(k); refresh(); return; }     // passkey checked in the page: nothing to send, so no receipt
   paintTick(k); refresh();
   const stop = new AbortController(), timer = setTimeout(() => stop.abort(), 5000), t0 = Date.now();
-  const body = { action: 'tick', job: t.id || t.name, task: t.name, sub: c.list[k].id, checked, at: new Date().toISOString(), ...(passkey ? { passkey } : {}) };
+  const body = { action: 'tick', job: t.id || t.name, task: t.name, sub: c.list[k].id, checked, ...(retry ? { retry: true } : {}), at: new Date().toISOString(), ...cred() };
   let ok = false;
   try { const j = MOCK ? (await mockClick(body), { ok: true }) : await service(body, stop.signal); ok = accepted(j); } catch (e) { ok = false; }
   clearTimeout(timer);
@@ -558,7 +579,7 @@ async function signIn() {
   try {
     const r = await checkPasskey(p);
     if (!r.ok) { st($('#lstat'), 'bad', 'The passkey was not accepted.'); return; }
-    passkey = p; $('#passkey').value = ''; cur = null;
+    signedIn = true; token = r.token || ''; passkey = token ? '' : p; $('#passkey').value = ''; cur = null;
     tasks = r.jobs && r.jobs.length ? r.jobs : (CFG.tasks || []);
     const done = new Set(r.done), open = tasks.map((t, i) => [t, i]).filter(([t]) => !done.has(t.name) && !(t.id && done.has(t.id)));
     $('#task').innerHTML = `<option value="">${open.length ? 'Choose a job…' : 'Every job is complete'}</option>` + open.map(([t, i]) => `<option value="${i}">${esc(t.name)}</option>`).join('');
@@ -592,7 +613,8 @@ async function signOut() {
     try { await recordComplete(tasks[finished.i], finished.list); }
     catch (e) { $('#logout').disabled = false; $('#logoutWhy').textContent = `The job could not be recorded as done (${e.message || e}); you remain signed in. Press Sign out to try again.`; return; }
   }
-  passkey = ''; cur = null; tasks = CFG.tasks || [];
+  if (token && hasService() && !MOCK) service({ action: 'signout', token }).catch(() => {});      // ends the session token at the service
+  passkey = ''; token = ''; signedIn = false; cur = null; tasks = CFG.tasks || [];
   $('#taskBar').hidden = $('#logoutPanel').hidden = $('#taskPanel').hidden = true; $('#loginPanel').hidden = false;
   $('#task').innerHTML = '<option value="">Choose a job…</option>'; $('#task').disabled = false; $('#subtasks').innerHTML = ''; $('#subtasks').dataset.task = '';
   st($('#lstat'), 'ok', finished ? `Signed out. "${fname}" is recorded as done.` : 'Signed out.'); $('#lstat').insertAdjacentHTML('beforeend', CONF); $('#passkey').focus();
@@ -623,7 +645,7 @@ function askStation(then) {      // then(name) runs inside the press of Install,
   $('#nameYes').onclick = () => {
     const v = $('#stationIn').value.trim();
     if (!STATION_OK.test(v)) { st($('#nameStat'), 'bad', 'Use 1–40 letters, digits, spaces, dashes, dots or underscores, starting with a letter or digit.'); $('#stationIn').focus(); return; }
-    setStation(v); report({ action: 'event', kind: 'station-named', detail: v }, () => flash($('#instConf'))); done(); then(v);
+    setStation(v); askPosition(); report({ action: 'event', kind: 'station-named', detail: v }, () => flash($('#instConf'))); done(); then(v);
   };
 }
 $('#stationIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('#nameYes').click(); if (e.key === 'Escape') $('#nameNo').click(); });
@@ -670,7 +692,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 
 /* ---------- build stamp ---------- */
 (() => {
-  const APP_BUILD = '2026.11.24-0500';   // page design build, stamped at each commit
+  const APP_BUILD = '2026.11.24-0540';   // page design build, stamped at each commit
   const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   const slot = document.getElementById('updatedStamp');
   if (slot) slot.textContent = 'Page design build ' + APP_BUILD + (CFG.builder_build ? ' · builder build ' + CFG.builder_build : '') + ' · made ' + show(CFG.made);
