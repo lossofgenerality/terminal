@@ -14,7 +14,7 @@ From the top:
 4. **Sign out** — disabled until every sub-task of the chosen task is ticked. Pressing it opens an **ARE YOU SURE?** window; *Yes, sign out* then records the task as done; if it cannot be recorded, the person stays signed in and may try again. When every task is done, the pulldown says so and sign-out is open.
 5. **Message** — a box for messages to the manager, available before signing in as well, so that a worker who cannot sign in can still reach the manager. Messages are two-way, but a reply is optional. Each message carries a small dot: red, not sent (with *Send again*); yellow, delivered with no response yet; green, opened by the manager; blue, handled. A written reply appears under the message. Each dot also has a text label.
 
-At the top right of the page is the **Emergency** button, styled as a factory emergency stop. One press, with no sign-in, sends an emergency to the service, which starts the emergency protocol; its status uses the same colours. A second press while one is open does not raise another. If it cannot be sent, the page says so, tells the worker to raise the alarm on site, and retries every 5 seconds.
+At the top right of the page is the **Emergency** button, styled as a red emergency stop. One press, with no sign-in, sends an emergency to the service, which starts the emergency protocol; its status uses the same colours. A second press while one is open does not raise another. If it cannot be sent, the page says so, tells the worker to raise the alarm on site, and retries every 5 seconds.
 
 Under the sign-in box is the red line *Warning: Unauthorized Access Forbidden*.
 
