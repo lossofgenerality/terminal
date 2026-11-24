@@ -321,7 +321,7 @@ $('#save').onclick = async () => {
   const c = check(); if (!c) { st($('#estat'), 'bad', 'Please correct the points above.'); return; }
   st($('#estat'), '', 'Saving…'); $('#save').disabled = true;
   try { const j = await svc({ action: 'saveJob', authorKey, job: c, was: loadedId || undefined }); if (!j.ok) throw new Error(j.message || 'the service refused it');
-    loadedId = c.id; savedJSON = JSON.stringify(c); markDirty(); await refreshList(); st($('#estat'), MOCK ? 'warn' : 'ok', MOCK ? `Saved ${c.id} — ${c.name} in this browser only (test mode). Nothing was sent to the Wolfram Cloud, and no terminal will see it.` : `Saved ${c.id} — ${c.name} to the service. The terminals will show it from their next sign-in.`); }
+    loadedId = c.id; savedJSON = JSON.stringify(c); markDirty(); await refreshList(); st($('#estat'), MOCK ? 'warn' : 'ok', MOCK ? `Saved ${c.id} — ${c.name} in this browser only (test mode). Nothing was sent to the Wolfram Cloud. The test-mode terminal in this browser shows it (the demo, passkey 123); real terminals do not.` : `Saved ${c.id} — ${c.name} to the service. The terminals will show it from their next sign-in.`); }
   catch (e) { st($('#estat'), 'bad', 'Not saved: ' + (e.message || e)); }
   finally { $('#save').disabled = false; }
 };
