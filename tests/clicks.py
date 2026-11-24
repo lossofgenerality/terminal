@@ -1,6 +1,7 @@
 # Checks of the click reports (rules 1-3) against the stand-in service on the real wire (payload_b64 in, reply_b64 out):
 # every tick and untick, the station named, the install, the job chosen, Sign out Cancel and Yes are sent at once, in order,
-# with time, station, job and sub-task ID; with no connection they wait under a "waiting to send" sign, and sign-out completes
+# with time, station, job and sub-task ID. Each tick shows Confirmed (bold orange) once the service has it; with no confirmation
+# in 5 s the box goes back and Press again! (bold red) shows. Other clicks wait under "Waiting to send"; sign-out completes
 # only once the service has them all. Also the same in test mode (?mock=1), where the page plays the service.
 # Run:  python3 -I tests/clicks.py   (needs: pip install playwright; playwright install chromium)
 # © Computational Classnotes · CC BY-NC-SA 4.0
@@ -45,17 +46,28 @@ async def main():
             # Sign out, then Cancel
             await t.click('#logout'); await t.wait_for_selector('#sure:not([hidden])'); await t.click('#sureNo'); await t.wait_for_timeout(400)
             ok('Sign out Cancel reported', (await clicks(t))[-1]['kind']=='signout-cancel')
-            # offline: clicks wait, in order; sign-out waits for them
+            ok('each tick shows Confirmed beside it', await t.eval_on_selector_all('#subtasks .tconf','L=>L.every(e=>e.textContent==="Confirmed")'))
+            ok('Confirmed is bold orange', await t.eval_on_selector('#subtasks .tconf b','b=>getComputedStyle(b).fontWeight>=600 && getComputedStyle(b).color==="rgb(234, 88, 12)"'))
+            # no connection: after 5 s the box goes back and Press again! shows
             n0=len(await clicks(t)); await offline(t,True)
-            await boxes[2].uncheck(); await boxes[2].check(); await t.wait_for_selector('#outbox:not([hidden])')
-            ok('offline: waiting-to-send sign with the count', 'Waiting to send 2 clicks' in await t.inner_text('#outbox'))
+            await boxes[2].uncheck(); await t.wait_for_timeout(1500)
+            ok('while on its way: no receipt yet, box waits', (await t.inner_text('#subtasks .tconf >> nth=2'))=='' and await boxes[2].is_disabled())
+            await t.wait_for_function("document.querySelectorAll('#subtasks .tconf')[2].textContent==='Press again!'", timeout=7000)
+            ok('after 5 s: Press again! in bold red, box back as it was', await boxes[2].is_checked() and await t.eval_on_selector('#subtasks .tconf >> nth=2','e=>getComputedStyle(e.querySelector("b")).color==="rgb(220, 38, 38)"'))
+            ok('nothing reached the service', len(await clicks(t))==n0)
+            await offline(t,False); await boxes[2].uncheck(); await t.wait_for_function("document.querySelectorAll('#subtasks .tconf')[2].textContent==='Confirmed'", timeout=7000)
+            ok('pressed again: the untick is Confirmed', not await boxes[2].is_checked() and [(x['sub'],x['checked']) for x in (await clicks(t))[n0:]]==[(ids[2],False)])
+            await offline(t,True); await boxes[2].check(); await t.wait_for_function("document.querySelectorAll('#subtasks .tconf')[2].textContent==='Press again!'", timeout=7000)
+            ok('an unconfirmed tick is unticked again, sign-out stays shut', not await boxes[2].is_checked() and await t.is_disabled('#logout'))
+            await offline(t,False); await boxes[2].check(); await t.wait_for_function("document.querySelectorAll('#subtasks .tconf')[2].textContent==='Confirmed'", timeout=7000)
+            ok('pressed again: Confirmed, sign-out open', await boxes[2].is_checked() and await t.is_enabled('#logout'))
+            # sign-out: its click waits for the connection, then sign-out completes
+            n1=len(await clicks(t)); await offline(t,True)
             await t.click('#logout'); await t.wait_for_selector('#sure:not([hidden])'); await t.click('#sureYes'); await t.wait_for_timeout(600)
-            ok('offline: sign-out waits, still signed in', await t.is_visible('#taskBar') and 'sign-out completes as soon as' in await t.inner_text('#logoutWhy') and 'Waiting to send 3 clicks' in await t.inner_text('#outbox'))
-            ok('offline: nothing reached the service', len(await clicks(t))==n0)
+            ok('offline: sign-out waits, still signed in', await t.is_visible('#taskBar') and 'sign-out completes as soon as' in await t.inner_text('#logoutWhy') and 'Waiting to send 1 click' in await t.inner_text('#outbox'))
             await offline(t,False); await t.wait_for_selector('#loginPanel:not([hidden])', timeout=12000)
-            c=(await clicks(t))[n0:]
-            ok('back online: the waiting clicks arrive in order, then sign-out', [(x['action'],x.get('sub') or x.get('kind'),x.get('checked')) for x in c]==[('tick',ids[2],False),('tick',ids[2],True),('event','signout-confirm',None)])
-            ok('signed out with the job recorded', 'is recorded as done' in await t.inner_text('#lstat') and await t.is_hidden('#outbox'))
+            ok('back online: sign-out arrives, then the job is recorded', [x.get('kind') for x in (await clicks(t))[n1:]]==['signout-confirm'])
+            ok('signed out, Confirmed', 'is recorded as done' in await t.inner_text('#lstat') and 'Confirmed' in await t.inner_text('#lstat') and await t.is_hidden('#outbox'))
             await t.fill('#passkey','service-pass'); await t.press('#passkey','Enter'); await t.wait_for_selector('#taskBar:not([hidden])')
             ok('one job fewer at the next sign-in', await t.eval_on_selector('#task','s=>[...s.options].slice(1).map(o=>o.textContent)')==['Label printer'])
             # test mode: the page plays the service
@@ -63,10 +75,12 @@ async def main():
             await m.fill('#passkey','123'); await m.press('#passkey','Enter'); await m.wait_for_selector('#taskBar:not([hidden])')
             await m.select_option('#task', index=1); await m.wait_for_selector('#subtasks li'); await m.check('#subtasks input >> nth=0'); await m.wait_for_timeout(500)
             ok('test mode: clicks listed on the manager side', 'ticked' in await m.inner_text('#mockClicks') and 'job-chosen' in await m.inner_text('#mockClicks'))
-            await m.check('#mockOffline'); await m.uncheck('#subtasks input >> nth=0'); await m.wait_for_selector('#outbox:not([hidden])')
-            ok('test mode: no connection shows the waiting sign', 'Waiting to send 1 click' in await m.inner_text('#outbox'))
-            await m.uncheck('#mockOffline'); await m.wait_for_selector('#outbox', state='hidden', timeout=3000)
-            ok('test mode: connection back sends it', 'unticked' in await m.inner_text('#mockClicks'))
+            ok('test mode: Confirmed beside the tick', 'Confirmed' in await m.inner_text('#subtasks li >> nth=0'))
+            await m.check('#mockOffline'); await m.uncheck('#subtasks input >> nth=0')
+            await m.wait_for_function("document.querySelector('#subtasks .tconf').textContent==='Press again!'", timeout=7000)
+            ok('test mode: no connection, Press again! and the box back', await m.is_checked('#subtasks input >> nth=0'))
+            await m.uncheck('#mockOffline'); await m.uncheck('#subtasks input >> nth=0'); await m.wait_for_function("document.querySelector('#subtasks .tconf').textContent==='Confirmed'", timeout=7000)
+            ok('test mode: pressed again, Confirmed', 'unticked' in await m.inner_text('#mockClicks'))
             ok('no page errors', not errs)
             if errs: print(errs)
             await b.close()

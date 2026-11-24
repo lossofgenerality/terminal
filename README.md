@@ -53,7 +53,9 @@ The service is `ff_terminal` in the Wolfram Cloud, live at `https://www.wolframc
 
 Every request also carries `station`, the installation's ID (empty if none was given). `conv` is the device's conversation id, kept in the browser. Statuses are `delivered`, `opened` and `handled`. Messages and emergencies need no passkey: anyone may send. `done` lists the jobs already completed, which the pulldown leaves out. If the service omits `done`, the page falls back to what this browser remembers. Sign-in attempts, accepted or refused, are logged by the service itself.
 
-**Every click is sent at once, in order.** With no connection, clicks wait on the page under a small amber *Waiting to send …* sign, and are retried every 5 seconds and as soon as the connection returns; any reply means the service has the click. **Sign out completes only once the service has received every waiting click**; the job is then recorded as done. The emergency keeps retrying on its own.
+**Every action shows its receipt.** When the service has a click, **Confirmed** appears in bold orange beside or under the control: beside each sub-task (it stays), beside the Job menu (sign-in, job chosen), under Sign out, under Install, beside each message, in the emergency box. **If a tick or untick is not Confirmed within 5 seconds, the box goes back to how it was and *Press again!* shows in bold red:** no Confirmed means press again. Sign out opens only when every tick is Confirmed.
+
+**Every click is sent at once, in order.** With no connection, the other clicks wait on the page under a small amber *Waiting to send …* sign, and are retried every 5 seconds and as soon as the connection returns; any reply means the service has the click. **Sign out completes only once the service has received every waiting click**; the job is then recorded as done. The emergency keeps retrying on its own.
 
 ## The job-authoring tool (`author/`)
 
