@@ -36,7 +36,10 @@ button.b.s { font-size:12.5px; padding:3px 8px }
 .tools button { font:inherit; font-size:13.5px; min-width:30px; height:28px; padding:0 8px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--ink); cursor:pointer }
 .tools .sw { width:24px; min-width:24px; padding:0; border-radius:50% }
 .tools .sep { width:1px; height:20px; background:var(--line); margin:0 3px }
-.tools + textarea { border-radius:0 0 7px 7px }
+.ed { min-height:190px; max-height:420px; overflow:auto; font-size:14px; line-height:1.55; padding:9px 11px; border:1px solid var(--line); border-radius:0 0 7px 7px; background:var(--panel); color:var(--ink); outline:none; resize:vertical }
+.ed:focus { box-shadow:0 0 0 2px var(--accent) inset }
+.ed:empty::before { content:attr(data-ph); color:var(--mute) }
+.ed div, .ed p { margin:0 0 .6em }
 /* sub-tasks */
 #subs { display:flex; flex-direction:column; gap:6px; margin-top:6px }
 .sub-row { display:grid; grid-template-columns:110px 1fr auto; gap:6px; align-items:center }
@@ -100,8 +103,8 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
         <button data-f="ul" title="Bullet points">• List</button>
         <button data-f="clear" title="Remove the formatting from the selection">Clear</button>
       </div>
-      <textarea id="spec" spellcheck="true" placeholder="What the worker needs to know: what to check, in what order, safety notes, whom to call."></textarea>
-      <div class="mute">Select text, then press B, I or a colour. <code>**bold**</code> · <code>*italic*</code> · <code>[red]…[/red]</code> · a line starting <code>- </code> is a bullet point.</div>
+      <div id="spec" class="ed spec" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true" aria-label="Job specifics" data-ph="What the worker needs to know: what to check, in what order, safety notes, whom to call."></div>
+      <div class="mute">Type as in a word processor. Select text, then press B, I or a colour; • List makes bullet points; Clear removes the formatting from the selection. Pasted text arrives without its formatting.</div>
 
       <label class="f">Sub-tasks, in order: each with its ID and a short text</label>
       <div id="subs"></div>
@@ -128,7 +131,7 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
 
 <script>
 'use strict';
-const APP_BUILD = '2026.11.24-0115';   // build number, stamped at each commit
+const APP_BUILD = '2026.11.24-0120';   // build number, stamped at each commit
 /* where the service is: ?svc=https://… or the address below; ?mock=1 keeps the jobs in this browser instead (author key: 123) */
 const SERVICE = new URLSearchParams(location.search).get('svc') || '';
 const MOCK = /[?&]mock=1/.test(location.search) || !SERVICE;
@@ -137,11 +140,12 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&l
 const st = (el, cls, text) => { el.className = 'st ' + (cls || ''); el.textContent = text || ''; };
 
 /* ---------- the mini markup: the same rules as the terminal page ----------
-   **bold**  *italic*  [red]…[/red] (red, amber, green, blue)  "- " starts a bullet; a blank line starts a paragraph
+   **bold**  __italic__ (or *italic*)  [red]…[/red] (red, amber, green, blue)  "- " starts a bullet; a blank line starts a paragraph
    everything is escaped first, so the text can never carry HTML or script */
 function renderSpec(src) {
   const inline = t => esc(t)
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/__(.+?)__/g, '<i>$1</i>')
     .replace(/(^|[^*])\*(?!\s)(.+?)\*(?!\*)/g, '$1<i>$2</i>')
     .replace(/\[(red|amber|green|blue)\]([\s\S]*?)\[\/\1\]/g, '<span class="c-$1">$2</span>');
   const out = []; let para = [], list = [];
@@ -156,43 +160,73 @@ function renderSpec(src) {
   return out.join('');
 }
 
-/* ---------- the toolbar ---------- */
-const ta = $('#spec');
-function wrap(open, close) {
-  const a = ta.selectionStart, z = ta.selectionEnd, v = ta.value, sel = v.slice(a, z) || 'text';
-  ta.setRangeText(open + sel + close, a, z, 'end');
-  ta.setSelectionRange(a + open.length, a + open.length + sel.length); ta.focus(); changed();
+/* ---------- the WYSIWYG editor ----------
+   what the author sees is formatted; what is stored is the small markup the terminal draws (renderSpec above),
+   so a job can never carry HTML or script: the editor's content is turned back into that markup on every change */
+const ed = $('#spec');
+function toMarkup(root) {
+  const blocks = /^(DIV|P|UL|OL|LI|H1|H2|H3|H4|BLOCKQUOTE)$/;
+  function inl(n) {
+    if (n.nodeType === 3) return n.nodeValue.replace(/ /g, ' ');
+    if (n.nodeType !== 1) return '';
+    if (n.tagName === 'BR') return '\n';
+    let t = [...n.childNodes].map(walk).join('');
+    if (!t.trim()) return t;
+    const tag = n.tagName, w = n.style || {};
+    if (tag === 'B' || tag === 'STRONG' || /^(bold|[6-9]00)$/.test(w.fontWeight)) t = `**${t}**`;
+    if (tag === 'I' || tag === 'EM' || w.fontStyle === 'italic') t = `__${t}__`;
+    const c = (n.className && String(n.className).match(/\bc-(red|amber|green|blue)\b/) || [])[1];
+    if (c) t = `[${c}]${t}[/${c}]`;
+    return t;
+  }
+  function walk(n) {
+    if (n.nodeType === 1 && blocks.test(n.tagName)) {
+      if (n.tagName === 'UL' || n.tagName === 'OL') return '\n' + [...n.children].map(li => '- ' + [...li.childNodes].map(walk).join('').replace(/\n+/g, ' ').trim()).join('\n') + '\n';
+      const inner = [...n.childNodes].map(walk).join('');
+      return (n.tagName === 'P' ? '\n\n' : '\n') + inner + (n.tagName === 'P' ? '\n\n' : '\n');
+    }
+    return inl(n);
+  }
+  return [...root.childNodes].map(walk).join('')
+    .replace(/\*\*(\s*)\*\*|__(\s*)__/g, '$1$2').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').replace(/^\n+|\s+$/g, '');
 }
-function bulletLines() {
-  const v = ta.value, a = v.lastIndexOf('\n', ta.selectionStart - 1) + 1, zz = v.indexOf('\n', ta.selectionEnd), z = zz < 0 ? v.length : zz;
-  const block = v.slice(a, z).split('\n').map(l => /^\s*[-•]\s+/.test(l) ? l.replace(/^\s*[-•]\s+/, '') : '- ' + l).join('\n');
-  ta.setRangeText(block, a, z, 'select'); ta.focus(); changed();
+function specValue() { return toMarkup(ed); }
+function setSpec(markup) { ed.innerHTML = renderSpec(markup); }
+const exec = (c, v) => { ed.focus(); document.execCommand(c, false, v); changed(); };
+function colour(c) {
+  const sel = getSelection(); if (!sel.rangeCount || sel.isCollapsed || !ed.contains(sel.anchorNode)) return;
+  const r = sel.getRangeAt(0), frag = r.extractContents();
+  frag.querySelectorAll('span[class*="c-"]').forEach(x => x.replaceWith(...x.childNodes));     // one colour at a time
+  const span = document.createElement('span'); span.className = 'c-' + c; span.appendChild(frag); r.insertNode(span);
+  sel.removeAllRanges(); const nr = document.createRange(); nr.selectNodeContents(span); sel.addRange(nr); changed();
 }
 function clearFormat() {
-  const a = ta.selectionStart, z = ta.selectionEnd; if (a === z) return;
-  const t = ta.value.slice(a, z).replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1').replace(/\[\/?(red|amber|green|blue)\]/g, '');
-  ta.setRangeText(t, a, z, 'select'); ta.focus(); changed();
+  const sel = getSelection(); if (!sel.rangeCount || sel.isCollapsed) return;
+  const r = sel.getRangeAt(0); document.execCommand('removeFormat');
+  ed.querySelectorAll('span[class*="c-"], b, strong, i, em').forEach(x => { if (r.intersectsNode(x)) x.replaceWith(...x.childNodes); });
+  changed();
 }
-document.querySelector('.tools').addEventListener('mousedown', e => e.preventDefault());   // keep the selection in the text
+document.querySelector('.tools').addEventListener('mousedown', e => e.preventDefault());   // keep the selection in the editor
 document.querySelector('.tools').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
-  if (b.dataset.f === 'b') wrap('**', '**'); else if (b.dataset.f === 'i') wrap('*', '*');
-  else if (b.dataset.c) wrap(`[${b.dataset.c}]`, `[/${b.dataset.c}]`);
-  else if (b.dataset.f === 'ul') bulletLines(); else if (b.dataset.f === 'clear') clearFormat();
+  if (b.dataset.f === 'b') exec('bold'); else if (b.dataset.f === 'i') exec('italic');
+  else if (b.dataset.c) colour(b.dataset.c);
+  else if (b.dataset.f === 'ul') exec('insertUnorderedList'); else if (b.dataset.f === 'clear') clearFormat();
 });
-ta.addEventListener('keydown', e => {
-  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'b' || e.key === 'i')) { e.preventDefault(); e.key === 'b' ? wrap('**', '**') : wrap('*', '*'); }
-});
+ed.addEventListener('paste', e => { e.preventDefault(); const t = (e.clipboardData || window.clipboardData).getData('text/plain'); document.execCommand('insertText', false, t); });
+ed.addEventListener('drop', e => e.preventDefault());
+document.execCommand('styleWithCSS', false, false);
+document.execCommand('defaultParagraphSeparator', false, 'div');
 
 /* ---------- the job being edited ---------- */
 let job = blank(), savedJSON = '', jobsList = [], authorKey = '';
 function blank() { return { id: '', name: '', specifics: '', subtasks: [{ id: '', text: '' }] }; }
 function readForm() {
-  job.id = $('#jobId').value.trim(); job.name = $('#jobName').value.trim(); job.specifics = ta.value.replace(/\s+$/, '');
+  job.id = $('#jobId').value.trim(); job.name = $('#jobName').value.trim(); job.specifics = specValue();
   job.subtasks = [...document.querySelectorAll('.sub-row')].map(r => ({ id: r.querySelector('.id').value.trim(), text: r.querySelector('.tx').value.trim() }));
 }
 function fillForm() {
-  $('#jobId').value = job.id; $('#jobName').value = job.name; ta.value = job.specifics; drawSubs(); preview(); markDirty();
+  $('#jobId').value = job.id; $('#jobName').value = job.name; setSpec(job.specifics); drawSubs(); preview(); markDirty();
 }
 function drawSubs() {
   $('#subs').innerHTML = job.subtasks.map((s, k) => `<div class="sub-row" data-k="${k}">
@@ -209,7 +243,7 @@ $('#subs').addEventListener('click', e => {
   drawSubs(); changed();
 });
 $('#addSub').onclick = () => { readForm(); job.subtasks.push({ id: '', text: '' }); drawSubs(); changed(); document.querySelector('.sub-row:last-child .tx').focus(); };
-['#jobId', '#jobName'].forEach(s => $(s).addEventListener('input', changed)); ta.addEventListener('input', changed);
+['#jobId', '#jobName'].forEach(s => $(s).addEventListener('input', changed)); ed.addEventListener('input', changed);
 $('#subs').addEventListener('input', changed);
 /* a sub-task left without an ID takes the job's ID and its place: MI-01, MI-02 … */
 const subId = (s, k) => s.id || ((job.id || 'ID') + '-' + String(k + 1).padStart(2, '0'));
@@ -277,10 +311,10 @@ $('#jobs').addEventListener('click', async e => {
   st($('#estat'), '', 'Opening…');
   try { const j = await svc({ action: 'getJob', authorKey, id: b.dataset.id }); if (!j.ok) throw new Error(j.message || 'refused');
     job = JSON.parse(JSON.stringify(j.job)); if (!job.subtasks.length) job.subtasks.push({ id: '', text: '' });
-    loadedId = job.id; savedJSON = JSON.stringify(clean()); fillForm(); drawList(); st($('#estat'), '', ''); $('#errs').hidden = true; }
+    loadedId = job.id; fillForm(); readForm(); savedJSON = JSON.stringify(clean()); markDirty(); drawList(); st($('#estat'), '', ''); $('#errs').hidden = true; }
   catch (e) { st($('#estat'), 'bad', e.message || String(e)); }
 });
-$('#newJob').onclick = () => { if (!unsavedOK()) return; job = blank(); loadedId = ''; savedJSON = JSON.stringify(clean()); fillForm(); drawList(); $('#errs').hidden = true; st($('#estat'), '', ''); $('#jobId').focus(); };
+$('#newJob').onclick = () => { if (!unsavedOK()) return; job = blank(); loadedId = ''; fillForm(); readForm(); savedJSON = JSON.stringify(clean()); markDirty(); drawList(); $('#errs').hidden = true; st($('#estat'), '', ''); $('#jobId').focus(); };
 $('#save').onclick = async () => {
   const c = check(); if (!c) { st($('#estat'), 'bad', 'Please correct the points above.'); return; }
   st($('#estat'), '', 'Saving…'); $('#save').disabled = true;
@@ -301,7 +335,7 @@ async function signIn() {
   st($('#sstat'), '', 'Checking…');
   try { const j = await svc({ action: 'listJobs', authorKey: k }); if (!j.ok) { st($('#sstat'), 'bad', j.message || 'The author key was not accepted.'); return; }
     authorKey = k; $('#key').value = ''; jobsList = j.jobs || []; drawList(); $('#signPanel').hidden = true; $('#work').hidden = false;
-    job = blank(); loadedId = ''; savedJSON = JSON.stringify(clean()); fillForm(); st($('#lstat'), '', jobsList.length ? '' : 'No jobs yet.'); }
+    job = blank(); loadedId = ''; fillForm(); readForm(); savedJSON = JSON.stringify(clean()); markDirty(); st($('#lstat'), '', jobsList.length ? '' : 'No jobs yet.'); }
   catch (e) { st($('#sstat'), 'bad', e.message || String(e)); }
 }
 $('#signIn').onclick = signIn; $('#key').addEventListener('keydown', e => { if (e.key === 'Enter') signIn(); });
@@ -312,7 +346,7 @@ $('#svcLine').innerHTML = MOCK ? '<span style="color:var(--warn)">Test mode: the
 
 /* footer: build and when this copy was updated */
 (() => {
-  const UPDATED = '2026-11-24T01:15:00Z';
+  const UPDATED = '2026-11-24T01:20:00Z';
   const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   const PUBLISHED = /^https?:/.test(location.protocol) && !isNaN(Date.parse(document.lastModified)) ? document.lastModified : UPDATED;
   $('#updatedStamp').textContent = 'Build ' + APP_BUILD + ' · Updated ' + show(PUBLISHED);

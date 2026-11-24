@@ -337,18 +337,19 @@ async function service(body) {
 const accepted = j => j.ok === true || j.accepted === true || j.Success === true;
 async function checkPasskey(p) {        // -> { ok, done: [task names] }
   const a = CFG.auth || {};
-  if (a.mode === 'hash') return { ok: (await sha256Hex(a.salt + ':' + p)) === a.hash, done: localDone() };
+  if (a.mode === 'hash') return { ok: (await sha256Hex(a.salt + ':' + p)) === a.hash, done: localDone(), jobs: MOCK ? authoredJobs() : null };
   if (a.mode === 'remote') {
-    if (MOCK) return { ok: p === '123', done: localDone() };
+    if (MOCK) return { ok: p === '123', done: localDone(), jobs: authoredJobs() };
     const j = await service({ action: 'signin', passkey: p });
-    return { ok: accepted(j), done: Array.isArray(j.done) ? j.done.map(String) : localDone() };
+    const jobs = Array.isArray(j.jobs) ? j.jobs.filter(x => x && x.id != null && x.name).map(x => ({ id: String(x.id), name: String(x.name), from: 'service' })) : null;
+    return { ok: accepted(j), done: Array.isArray(j.done) ? j.done.map(String) : localDone(), jobs };
   }
   throw new Error('This page has no passkey check configured.');
 }
 async function recordComplete(t, list) {
   const a = CFG.auth || {};
-  if (a.mode === 'remote' && !MOCK) { const j = await service({ action: 'complete', passkey, task: t.name, subtasks: list }); if (!accepted(j)) throw new Error(j.message || j.Message || 'the service did not record it'); }
-  const d = localDone(); if (!d.includes(t.name)) { d.push(t.name); saveLocalDone(d); }
+  if (a.mode === 'remote' && !MOCK) { const j = await service({ action: 'complete', passkey, task: t.name, ...(t.id ? { job: t.id } : {}), subtasks: list }); if (!accepted(j)) throw new Error(j.message || j.Message || 'the service did not record it'); }
+  const d = localDone(), key = t.id || t.name; if (!d.includes(key)) { d.push(key); saveLocalDone(d); }
 }
 
 /* ---------- sub-tasks: fetched from each task's address ---------- */
@@ -363,11 +364,12 @@ function parseJob(raw) {
   return { specifics: specifics.trim(), list: parseSubtasks(raw) };
 }
 /* the job specifics' mini markup, the same rules as the job-authoring tool:
-     **bold**  *italic*  [red]…[/red] (red, amber, green, blue)  "- " starts a bullet; a blank line starts a paragraph
+     **bold**  __italic__ (or *italic*)  [red]…[/red] (red, amber, green, blue)  "- " starts a bullet; a blank line starts a paragraph
    everything is escaped first, so the text can never carry HTML or script */
 function renderSpec(src) {
   const inline = t => esc(t)
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/__(.+?)__/g, '<i>$1</i>')
     .replace(/(^|[^*])\*(?!\s)(.+?)\*(?!\*)/g, '$1<i>$2</i>')
     .replace(/\[(red|amber|green|blue)\]([\s\S]*?)\[\/\1\]/g, '<span class="c-$1">$2</span>');
   const out = []; let para = [], list = [];
@@ -398,7 +400,23 @@ function parseSubtasks(raw) {
   list = list.map(x => ({ id: x.id, text: x.text.trim() })).filter(x => x.text).slice(0, 1000);
   return list.map((x, k) => ({ id: x.id || String(k + 1), text: x.text }));
 }
+/* test mode: jobs written in the job-authoring tool in this browser (it keeps them under this key, on the same site) */
+const AUTHOR_MOCK_KEY = 'ccn-terminal-author-mock';
+function authoredStore() { try { const v = JSON.parse(localStorage.getItem(AUTHOR_MOCK_KEY) || 'null'); return v && typeof v === 'object' ? v : null; } catch (e) { return null; } }
+function authoredJobs() { const S = authoredStore(); if (!S) return null; const L = Object.values(S).filter(j => j && j.id && j.name).map(j => ({ id: String(j.id), name: String(j.name), from: 'author' })); return L.length ? L : null; }
 async function fetchJob(t) {
+  if (t.from === 'author') {          // test mode: straight from the authoring tool's store in this browser
+    await new Promise(r => setTimeout(r, 150)); const j = (authoredStore() || {})[t.id];
+    if (!j) throw new Error('this job is no longer in the authoring tool');
+    const list = parseSubtasks(JSON.stringify(j.subtasks || [])); if (!list.length) throw new Error('the job has no sub-tasks');
+    return { specifics: String(j.specifics || ''), list };
+  }
+  if (t.from === 'service') {         // the job's contents come from the service when it is chosen
+    const j = await service({ action: 'job', job: t.id, passkey });
+    if (!accepted(j)) throw new Error(j.message || j.Message || 'the service refused it');
+    const list = parseSubtasks(JSON.stringify(j.subtasks || [])); if (!list.length) throw new Error('the reply held no sub-tasks');
+    return { specifics: String(j.specifics || ''), list };
+  }
   if (MOCK) { await new Promise(r => setTimeout(r, 150)); return { specifics: `**${t.name}**: the specifics of this job, as written in the job-authoring tool.\n\nTest mode shows canned text here. In real use this box holds the job's full instructions: what to check, in what order, safety notes, and whom to call. It scrolls when the text is long, and the worker cannot change it.\n\n[red]**Wear safety boots.**[/red] *Report anything unusual.*\n\n- Read these specifics.\n- Carry out each sub-task below.\n- [green]Tick each one[/green] as it is done.`, list: [1, 2, 3].map(i => ({ id: 'T-' + (100 + i), text: `${t.name}: sub-task ${i}` })) }; }
   const headers = CFG.sendPasskey ? { Authorization: 'Bearer ' + passkey } : {};
   const r = await fetch(t.url, { headers, cache: 'no-store' });
@@ -409,7 +427,7 @@ async function fetchJob(t) {
 }
 
 /* ---------- one task per session: choose it, complete every sub-task, then sign out ---------- */
-const tasks = CFG.tasks || [];
+let tasks = CFG.tasks || [];        // replaced at sign-in by the service's list (or, in test mode, the authoring tool's), when there is one
 let cur = null;      // { i, list: [strings], done: [booleans], error, loading }
 function choose(i) {
   cur = { i }; $('#subtasks').dataset.task = '';
@@ -456,7 +474,8 @@ async function signIn() {
     const r = await checkPasskey(p);
     if (!r.ok) { st($('#lstat'), 'bad', 'The passkey was not accepted.'); return; }
     passkey = p; $('#passkey').value = ''; cur = null;
-    const done = new Set(r.done), open = tasks.map((t, i) => [t, i]).filter(([t]) => !done.has(t.name));
+    tasks = r.jobs && r.jobs.length ? r.jobs : (CFG.tasks || []);
+    const done = new Set(r.done), open = tasks.map((t, i) => [t, i]).filter(([t]) => !done.has(t.name) && !(t.id && done.has(t.id)));
     $('#task').innerHTML = `<option value="">${open.length ? 'Choose a job…' : 'Every job is complete'}</option>` + open.map(([t, i]) => `<option value="${i}">${esc(t.name)}</option>`).join('');
     $('#taskBar').hidden = false; $('#logoutPanel').hidden = false; $('#loginPanel').hidden = true;
     st($('#lstat'), 'ok', ''); refresh();
@@ -477,16 +496,16 @@ $('#sure').addEventListener('click', e => { if (e.target.id === 'sure') $('#sure
 $('#sureYes').onclick = () => { $('#sure').hidden = true; signOut(); };
 async function signOut() {
   if ($('#logout').disabled) return;
-  const finished = cur && cur.list && cur.done.every(Boolean) ? cur : null;
+  const finished = cur && cur.list && cur.done.every(Boolean) ? cur : null, fname = finished ? tasks[finished.i].name : '';
   if (finished) {
     $('#logout').disabled = true; $('#logoutWhy').textContent = 'Recording the job as done…';
     try { await recordComplete(tasks[finished.i], finished.list); }
     catch (e) { $('#logout').disabled = false; $('#logoutWhy').textContent = `The job could not be recorded as done (${e.message || e}); you remain signed in. Press Sign out to try again.`; return; }
   }
-  passkey = ''; cur = null;
+  passkey = ''; cur = null; tasks = CFG.tasks || [];
   $('#taskBar').hidden = $('#logoutPanel').hidden = $('#taskPanel').hidden = true; $('#loginPanel').hidden = false;
   $('#task').innerHTML = '<option value="">Choose a job…</option>'; $('#task').disabled = false; $('#subtasks').innerHTML = ''; $('#subtasks').dataset.task = '';
-  st($('#lstat'), 'ok', finished ? `Signed out. "${tasks[finished.i].name}" is recorded as done.` : 'Signed out.'); $('#passkey').focus();
+  st($('#lstat'), 'ok', finished ? `Signed out. "${fname}" is recorded as done.` : 'Signed out.'); $('#passkey').focus();
 };
 
 /* ---------- messaging ---------- */
@@ -560,7 +579,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 
 /* ---------- build stamp ---------- */
 (() => {
-  const APP_BUILD = '2026.11.24-0110';   // page design build, stamped at each commit
+  const APP_BUILD = '2026.11.24-0120';   // page design build, stamped at each commit
   const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   const slot = document.getElementById('updatedStamp');
   if (slot) slot.textContent = 'Page design build ' + APP_BUILD + (CFG.builder_build ? ' · builder build ' + CFG.builder_build : '') + ' · made ' + show(CFG.made);

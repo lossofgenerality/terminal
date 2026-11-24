@@ -95,6 +95,16 @@ async def main():
             await signout(s); await s.wait_for_selector('#loginPanel:not([hidden])')
             ctx3=await b.new_context(); s2=await ctx3.new_page(); await s2.goto(U+'/out/'+root+'index.html')   # another device: nothing remembered locally
             await signin(s2,'service-pass'); ok('service record honoured on another device', await opts(s2)==['Label printer','Dispatch log'])
+            # ---- B2: the job list from the service at sign-in, each job fetched when chosen ----
+            await s2.evaluate("fetch('/svc/jobs',{method:'POST',body:JSON.stringify({on:true})})"); await s2.wait_for_timeout(200)
+            ctx4=await b.new_context(); s3=await ctx4.new_page(); s3.on('pageerror', lambda e: errs.append(str(e))); await s3.goto(U+'/out/'+root+'index.html')
+            await signin(s3,'service-pass'); ok('job menu comes from the service', await opts(s3)==['Service job'])
+            await s3.select_option('#task', label='Service job'); await s3.wait_for_selector('#subtasks li')
+            ok('job fetched from the service when chosen', 'SJ-01' in await s3.inner_text('#subtasks') and await s3.eval_on_selector('#specifics','e=>!!e.querySelector("b")'))
+            await tick_all(s3); await signout(s3); await s3.wait_for_selector('#loginPanel:not([hidden])')
+            ok('signed out naming the service job', '"Service job" is recorded as done' in await s3.inner_text('#lstat'))
+            await signin(s3,'service-pass'); ok('service job done: none left', await opts(s3)==[])
+            await s3.evaluate("fetch('/svc/jobs',{method:'POST',body:JSON.stringify({on:false})})"); await s3.wait_for_timeout(200)
             # ---- C: preview and a missing list ----
             await pg.check('#mockPreview'); await pg.fill('#tasks','Morning inspection\nMissing list'); await build(pg,'hash','correct-horse','Packing Station — Daily Checks')
             fr=pg.frame_locator('#frame'); await fr.locator('#passkey').fill('correct-horse'); await fr.locator('#passkey').press('Enter'); await fr.locator('#taskBar').wait_for(state='visible')

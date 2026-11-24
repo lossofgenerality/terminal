@@ -20,7 +20,7 @@ At the top right of the page is the **Emergency** button, styled as a red emerge
 
 Under the sign-in box is the red line *Warning: Unauthorized Access Forbidden*.
 
-Choosing a job fetches its address. The job's **specifics** appear in a read-only, scrollable box, with the formatting written in the job-authoring tool (`**bold**`, `*italic*`, `[red]…[/red]` in red, amber, green or blue, and `- ` bullet points); under it, the sub-tasks are laid out as a vertical list, each with an unticked checkbox on the left and, to its right, the sub-task's **ID number** followed by its short text. The worker ticks each one as it is done. Specifics are optional: without them the box is not shown.
+Choosing a job fetches its address. The job's **specifics** appear in a read-only, scrollable box, with the formatting given in the job-authoring tool. It is stored as a small markup, escaped before drawing: `**bold**`, `__italic__` (or `*italic*`), `[red]…[/red]` in red, amber, green or blue, and `- ` bullet points; under it, the sub-tasks are laid out as a vertical list, each with an unticked checkbox on the left and, to its right, the sub-task's **ID number** followed by its short text. The worker ticks each one as it is done. Specifics are optional: without them the box is not shown.
 
 The reply may be a JSON object `{"specifics": "…", "subtasks": [ … ]}` (`details` or `description` also serve for the specifics), or plain text: the specifics, a line holding only `---`, then one sub-task per line. A sub-task's ID comes with it: in JSON as an object `{"id": "MI-01", "text": "…"}` (`number` or `no` also serve), in plain text as `MI-01 | text`. A sub-task without an ID is numbered by its place in the list (1, 2, 3 …). For the sub-tasks alone, the reply may also be a JSON list of strings, a JSON object holding such a list under `subtasks`, `items`, `tasks`, `list` or `data` (its entries may also be objects with `text`, `name` or `title`), or plain text with one sub-task per line (leading `-`, `*`, `1.` or `[ ]` are removed). The addresses must allow cross-origin requests (CORS) from wherever the page is served.
 
@@ -51,7 +51,7 @@ Every request also carries `station`, the installation's ID (empty if none was g
 
 ## The job-authoring tool (`author/`)
 
-Jobs are written in the authoring tool and kept by the service in the Wolfram Cloud. The terminal page receives the list of jobs at sign-in and fetches a job's contents when it is chosen (being built). The tool speaks to the service with its own key, so that workers cannot change jobs:
+Jobs are written in the authoring tool and kept by the service in the Wolfram Cloud. When the sign-in reply carries `jobs: [{"id", "name"}]`, the terminal's Job menu lists those, and choosing one sends `{"action": "job", "job": id, "passkey": …}`, whose reply `{"ok": true, "specifics": …, "subtasks": [{"id", "text"}]}` fills the screen; otherwise the jobs given in the builder are used. In test mode, the terminal lists the jobs saved in the authoring tool in the same browser, so the two can be tried together before the service exists. The tool speaks to the service with its own key, so that workers cannot change jobs:
 
 | The tool sends | The service replies |
 |---|---|
@@ -80,7 +80,7 @@ Add `?mock=1` to a terminal page's address: canned sub-tasks, no requests. With 
 - `terminal-template.html` — the terminal page it fills in
 - `icons/` — the icons placed in each instance
 - `examples/` — sub-task lists used by the builder's example
-- `author/` — the **job-authoring tool**: write each job's specifics (with **B**, *I*, four colours and bullet points) and its sub-tasks with IDs, previewed as the terminal shows them, and save them to the service. Test mode keeps the jobs in the browser (author key `123`): https://lossofgenerality.github.io/terminal/author/?mock=1
+- `author/` — the **job-authoring tool**: write each job's specifics in a WYSIWYG editor (**B**, *I*, four colours, bullet points and Clear; pasted text arrives plain) and its sub-tasks with IDs, previewed as the terminal shows them, and save them to the service. Test mode keeps the jobs in the browser (author key `123`): https://lossofgenerality.github.io/terminal/author/?mock=1
 - `demo/` — a terminal page built by the builder, in test mode (passkey `123`): https://lossofgenerality.github.io/terminal/demo/
 - `tests/` — end-to-end checks in a headless browser, with a stand-in passkey service (see `tests/README.md`)
 
