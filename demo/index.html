@@ -53,6 +53,7 @@ h1 { font-size:22px; margin:4px 0 0 }
 .estop:active span { transform:translateY(3px); box-shadow:inset 0 -3px 6px rgba(0,0,0,.35), 0 1px 0 #7f1d1d }
 /* z-index 60 keeps the Emergency button above the ARE YOU SURE? window (50), so it can always be pressed */
 .estop:focus-visible { outline:3px solid var(--accent); outline-offset:3px }
+#outbox { margin-top:8px; font-size:12.5px; color:var(--warn); display:flex; align-items:center; gap:6px; flex-wrap:wrap }
 #emBox { border:2px solid #dc2626; background:rgba(220,38,38,.07) } #emBox h2 { color:#dc2626 }
 #emBox .row { flex-wrap:wrap }
 .warnline { color:var(--bad); font-size:13px; font-weight:600; margin-top:6px }
@@ -81,7 +82,8 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
   <header class="row" style="justify-content:space-between; align-items:center">
     <div><img id="logo" alt="" hidden><h1 id="appName">Packing Station</h1>
       <button class="b p" id="installBtn" style="margin-top:8px; font-size:13px; padding:6px 12px" title="Install this page as an app on this computer, tablet or phone">Install app</button>
-      <div id="installMsg" role="status" hidden></div></div>
+      <div id="installMsg" role="status" hidden></div>
+      <div id="outbox" role="status" hidden></div></div>
     <button class="estop" id="emergency" aria-label="Emergency: press to start the emergency protocol"><span>Emergency</span></button>
   </header>
 
@@ -131,8 +133,11 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
   <section class="panel" id="mock" hidden>
     <h2>Test mode · the manager's side</h2>
     <div class="mute" style="margin:-4px 0 8px">This panel exists only in test mode and is not part of the worker's page. Use it to act as the manager.</div>
-    <label class="mute"><input type="checkbox" id="mockFail"> Make the next send fail (message or emergency)</label>
+    <label class="mute"><input type="checkbox" id="mockFail"> Make the next send fail (message or emergency)</label><br>
+    <label class="mute"><input type="checkbox" id="mockOffline"> No connection: clicks wait to be sent</label>
     <table><tbody id="mockRows"><tr><td class="mute">No messages yet.</td></tr></tbody></table>
+    <h3 style="font-size:14px; margin:14px 0 4px">Clicks received by the service</h3>
+    <table><tbody id="mockClicks"><tr><td class="mute">None yet.</td></tr></tbody></table>
   </section>
 </main>
 <div id="nameWin" class="win" hidden role="dialog" aria-modal="true" aria-labelledby="nameT">
@@ -148,7 +153,7 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
 </div>
 <footer><span id="updatedStamp"></span> · © Computational Classnotes · CC BY-NC-SA 4.0</footer>
 
-<script id="config" type="application/json">{"id": "packing-station-mwtzj3ib", "made": "2026-11-24T00:57:21.539Z", "appName": "Packing Station", "short": "Packing Station", "tasks": [{"name": "Morning inspection", "url": "https://lossofgenerality.github.io/terminal/examples/morning-inspection.json"}, {"name": "Label printer", "url": "https://lossofgenerality.github.io/terminal/examples/label-printer.json"}, {"name": "Dispatch log", "url": "https://lossofgenerality.github.io/terminal/examples/dispatch-log.txt"}], "auth": {"mode": "remote", "url": "https://example.invalid/passkey-service"}, "sendPasskey": false, "builder_build": "2026.11.24-0043", "mock": true, "logo": "icons/icon-192.png"}</script>
+<script id="config" type="application/json">{"id":"packing-station-mwtzj3ib","made":"2026-11-24T00:57:21.539Z","appName":"Packing Station","short":"Packing Station","tasks":[{"name":"Morning inspection","url":"https://lossofgenerality.github.io/terminal/examples/morning-inspection.json"},{"name":"Label printer","url":"https://lossofgenerality.github.io/terminal/examples/label-printer.json"},{"name":"Dispatch log","url":"https://lossofgenerality.github.io/terminal/examples/dispatch-log.txt"}],"auth":{"mode":"remote","url":"https://example.invalid/passkey-service"},"sendPasskey":false,"builder_build":"2026.11.24-0415","mock":true,"logo":"icons/icon-192.png"}</script>
 <script>
 'use strict';
 const $ = s => document.querySelector(s);
@@ -159,7 +164,7 @@ const clean = v => String(v || '').trim();
 const st = (el, cls, text) => { el.className = 'st ' + (cls || ''); el.textContent = text || ''; };
 
 /* ---------- messaging: two-way, through the service; a reply is optional ----------
-   service protocol (JSON, POST to auth.url):
+   service protocol (JSON, POST to auth.url as payload_b64; see the wire below):
      send  {action:"message",  conv, mid, text, signedIn, task, passkey?, app, page} -> {ok:true}
      poll  {action:"messages", conv, app, page} -> {ok:true, messages:[{mid, status:"delivered"|"opened"|"handled", reply?}]}
    conv is this device's conversation id (kept in the browser); anyone may send, signed in or not */
@@ -259,6 +264,17 @@ $('#emergency').onclick = () => {
 };
 
 /* test mode: the manager's side */
+async function mockClick(c) {
+  await new Promise(r => setTimeout(r, 150));
+  if ($('#mockOffline').checked) throw new Error('no connection (test)');
+  mockSvc.clicks = (mockSvc.clicks || []).concat([{ ...c, station: station() }]); renderMockClicks();
+}
+function renderMockClicks() {
+  const L = (mockSvc.clicks || []).slice(-15).reverse();
+  $('#mockClicks').innerHTML = L.length ? L.map(c => `<tr><td class="mute" style="white-space:nowrap">${new Date(c.at).toLocaleTimeString('en-GB')}</td><td>${c.action === 'tick'
+    ? `${c.checked ? '<b>ticked</b>' : '<b style="color:var(--bad)">unticked</b>'} <b class="sid">${esc(c.sub)}</b> · ${esc(c.task)}` : `<b>${esc(c.kind)}</b>${c.detail ? ' · ' + esc(c.detail) : ''}`}${c.station ? ' · ' + esc(c.station) : ''}</td></tr>`).join('') : '<tr><td class="mute">None yet.</td></tr>';
+}
+$('#mockOffline').addEventListener('change', () => { if (!$('#mockOffline').checked) pump(); });
 function mockSet(mid, status, reply) {
   const b = mockSvc.box.find(x => x.mid === mid), m = msgs.find(x => x.mid === mid); if (!b || !m) return;
   b.status = m.status = status; if (reply != null) b.reply = m.reply = reply;
@@ -319,7 +335,7 @@ async function sha256Hex(text) {
 }
 
 /* ---------- the passkey, and which tasks are already complete ----------
-   service protocol (JSON, POST to auth.url):
+   service protocol (JSON, POST to auth.url as payload_b64; see the wire below):
      sign-in   {action:"signin",   passkey, app, page}              -> {ok:true, done:["task name", …]}   (done optional)
      sign-out  {action:"complete", passkey, app, page, task, subtasks} -> {ok:true}
    with the in-page check, completed tasks are remembered on this device only */
@@ -327,12 +343,44 @@ let passkey = '';     // held in memory only while signed in, never stored
 const DONE_KEY = 'ccn-terminal-done-' + (CFG.id || CFG.appName);
 const localDone = () => { try { const v = JSON.parse(localStorage.getItem(DONE_KEY) || '[]'); return Array.isArray(v) ? v.map(String) : []; } catch (e) { return []; } };
 const saveLocalDone = list => { try { localStorage.setItem(DONE_KEY, JSON.stringify(list)); } catch (e) {} };
+/* the wire: one form field, payload_b64 = base64 of the UTF-8 JSON request; the reply is {"reply_b64": base64 of the UTF-8 JSON reply}.
+   base64 keeps every language intact through the Wolfram Cloud; a form POST needs no CORS preflight */
+const b64enc = s => { const b = new TextEncoder().encode(s); let x = ''; for (let i = 0; i < b.length; i += 0x8000) x += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(x); };
+const b64dec = s => new TextDecoder().decode(Uint8Array.from(atob(s), c => c.charCodeAt(0)));
 async function service(body) {
   const a = CFG.auth;
-  const r = await fetch(a.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, app: CFG.appName, page: CFG.id, station: station() }) });
-  let j = null; try { j = await r.json(); } catch (e) {}
-  if (!j) throw new Error(`Unreadable reply from the passkey service (HTTP ${r.status}).`);
+  const r = await fetch(a.url, { method: 'POST', body: new URLSearchParams({ payload_b64: b64enc(JSON.stringify({ conv, ...body, app: CFG.appName, page: CFG.id, station: station() })) }) });
+  let j = null; try { j = await r.json(); if (j && typeof j.reply_b64 === 'string') j = JSON.parse(b64dec(j.reply_b64)); } catch (e) { j = null; }
+  if (!j || typeof j !== 'object') throw new Error(`Unreadable reply from the service (HTTP ${r.status}).`);
   return j;
+}
+
+/* ---------- every click that matters is reported to the service at once, in order ----------
+     tick   {action:"tick",  job, task, sub, checked, at, passkey}     (ticks and unticks; nothing is deleted)
+     event  {action:"event", kind, detail, at, passkey?}               kinds: job-chosen, signout-cancel, signout-confirm, station-named, install
+   sign-in attempts, messages and the emergency are reported by their own requests.
+   With no connection the clicks wait here, in order, with a "waiting to send" sign, and are retried every 5 s and when the
+   connection returns. A reply of any kind means the service has the click; only a failed request is retried.
+   Sign-out completes only once every waiting click has reached the service. */
+const outbox = []; let outBusy = false, outTimer = null, outErr = '', outWaiters = [];
+function report(body) {
+  if (!MOCK && !hasService()) return;
+  outbox.push({ ...body, at: body.at || new Date().toISOString(), ...(passkey ? { passkey } : {}) });
+  renderOutbox(); pump();
+}
+async function pump() {
+  if (outBusy) return; outBusy = true; clearTimeout(outTimer);
+  while (outbox.length) {
+    try { MOCK ? await mockClick(outbox[0]) : await service(outbox[0]); outbox.shift(); outErr = ''; renderOutbox(); }
+    catch (e) { outErr = e.message || String(e); renderOutbox(); outBusy = false; outTimer = setTimeout(pump, 5000); return; }
+  }
+  outBusy = false; outWaiters.splice(0).forEach(f => f());
+}
+const allSent = () => outbox.length ? new Promise(r => outWaiters.push(r)) : Promise.resolve();
+addEventListener('online', pump);
+function renderOutbox() {
+  const n = outbox.length, box = $('#outbox'); box.hidden = !n; if (!n) return;
+  box.innerHTML = `<i class="dot delivered"></i> Waiting to send ${n} click${n === 1 ? '' : 's'}` + (outErr ? ` · no connection, trying again every 5 seconds <span class="mute">(${esc(outErr)})</span>` : '…');
 }
 const accepted = j => j.ok === true || j.accepted === true || j.Success === true;
 async function checkPasskey(p) {        // -> { ok, done: [task names] }
@@ -461,8 +509,13 @@ function showTask() {
     ul.innerHTML = cur.list.map((x, k) => `<li><label><input type="checkbox" data-k="${k}"><span><b class="sid">${esc(x.id)}</b> ${esc(x.text)}</span></label></li>`).join('');
   }
 }
-$('#subtasks').addEventListener('change', e => { const k = e.target.dataset.k; if (k == null || !cur || !cur.list) return; cur.done[Number(k)] = e.target.checked; refresh(); });
-$('#task').onchange = () => { const v = $('#task').value; if (v === '') { cur = null; refresh(); } else choose(Number(v)); };
+$('#subtasks').addEventListener('change', e => {
+  const k = e.target.dataset.k; if (k == null || !cur || !cur.list) return;
+  cur.done[Number(k)] = e.target.checked; const t = tasks[cur.i];
+  report({ action: 'tick', job: t.id || t.name, task: t.name, sub: cur.list[Number(k)].id, checked: e.target.checked });
+  refresh();
+});
+$('#task').onchange = () => { const v = $('#task').value; if (v === '') { cur = null; refresh(); } else { const t = tasks[Number(v)]; report({ action: 'event', kind: 'job-chosen', detail: t.id || t.name }); choose(Number(v)); } };
 $('#retry').onclick = () => cur && choose(cur.i);
 
 /* ---------- sign in and out ---------- */
@@ -490,15 +543,20 @@ $('#logout').onclick = () => {
   $('#sureP').textContent = cur && cur.list ? `Signing out records "${tasks[cur.i].name}" as done.` : 'You will be signed out.';
   $('#sure').hidden = false; $('#sureNo').focus();
 };
-$('#sureNo').onclick = () => { $('#sure').hidden = true; $('#logout').focus(); };
+$('#sureNo').onclick = () => { $('#sure').hidden = true; report({ action: 'event', kind: 'signout-cancel', detail: cur ? (tasks[cur.i].id || tasks[cur.i].name) : '' }); $('#logout').focus(); };
 $('#sure').addEventListener('keydown', e => { if (e.key === 'Escape') $('#sureNo').click(); });
 $('#sure').addEventListener('click', e => { if (e.target.id === 'sure') $('#sureNo').click(); });
-$('#sureYes').onclick = () => { $('#sure').hidden = true; signOut(); };
+$('#sureYes').onclick = () => { $('#sure').hidden = true; report({ action: 'event', kind: 'signout-confirm', detail: cur ? (tasks[cur.i].id || tasks[cur.i].name) : '' }); signOut(); };
 async function signOut() {
   if ($('#logout').disabled) return;
   const finished = cur && cur.list && cur.done.every(Boolean) ? cur : null, fname = finished ? tasks[finished.i].name : '';
+  $('#logout').disabled = true;
+  if (outbox.length) {               // every click first reaches the service; sign-out then follows by itself
+    $('#logoutWhy').textContent = 'Sending the clicks still waiting; sign-out completes as soon as the service has them all.';
+    await allSent();
+  }
   if (finished) {
-    $('#logout').disabled = true; $('#logoutWhy').textContent = 'Recording the job as done…';
+    $('#logoutWhy').textContent = 'Recording the job as done…';
     try { await recordComplete(tasks[finished.i], finished.list); }
     catch (e) { $('#logout').disabled = false; $('#logoutWhy').textContent = `The job could not be recorded as done (${e.message || e}); you remain signed in. Press Sign out to try again.`; return; }
   }
@@ -533,7 +591,7 @@ function askStation(then) {      // then(name) runs inside the press of Install,
   $('#nameYes').onclick = () => {
     const v = $('#stationIn').value.trim();
     if (!STATION_OK.test(v)) { st($('#nameStat'), 'bad', 'Use 1–40 letters, digits, spaces, dashes, dots or underscores, starting with a letter or digit.'); $('#stationIn').focus(); return; }
-    setStation(v); done(); then(v);
+    setStation(v); report({ action: 'event', kind: 'station-named', detail: v }); done(); then(v);
   };
 }
 $('#stationIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('#nameYes').click(); if (e.key === 'Escape') $('#nameNo').click(); });
@@ -563,6 +621,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   // an installed app opened for the first time without an ID (iPhone keeps home-screen apps apart from Safari) asks for one
   if (installed() && !station()) addEventListener('load', () => askStation(() => {}));
   async function install(name) {
+    report({ action: 'event', kind: 'install', detail: deferred ? 'install offered' : (installed() ? 'already installed' : 'instructions shown') });
     if (deferred) { deferred.prompt();
       try { const c = await deferred.userChoice; if (c && c.outcome === 'dismissed') tell('Install cancelled. Press Install app to try again.'); } catch (e) {}
       deferred = null; return; }
@@ -579,7 +638,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 
 /* ---------- build stamp ---------- */
 (() => {
-  const APP_BUILD = '2026.11.24-0120';   // page design build, stamped at each commit
+  const APP_BUILD = '2026.11.24-0415';   // page design build, stamped at each commit
   const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   const slot = document.getElementById('updatedStamp');
   if (slot) slot.textContent = 'Page design build ' + APP_BUILD + (CFG.builder_build ? ' · builder build ' + CFG.builder_build : '') + ' · made ' + show(CFG.made);

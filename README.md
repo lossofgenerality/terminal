@@ -37,7 +37,7 @@ A check in the page is a gate, not protection: the job addresses can be read fro
 
 ## The service
 
-The page POSTs JSON to the service's address twice per session (`page` is the instance's id, from `terminal-data.json`):
+The service is `ff_terminal` in the Wolfram Cloud, live at `https://www.wolframcloud.com/obj/ccn2/TerminalKernel` (the builder's default address). Each request is a POST of one form field, `payload_b64`: base64 of the UTF-8 JSON below. The reply is `{"reply_b64": …}`, base64 of the UTF-8 JSON reply. Base64 keeps every language intact, and a form POST needs no CORS preflight. `page` is the instance's id, from `terminal-data.json`.
 
 | When | The page sends | The service replies |
 |---|---|---|
@@ -45,9 +45,13 @@ The page POSTs JSON to the service's address twice per session (`page` is the in
 | Sign-out after a job | `{"action": "complete", "passkey": …, "app": …, "page": …, "task": "…", "subtasks": [{"id", "text"}, …]}` | `{"ok": true}` once recorded |
 | A message | `{"action": "message", "conv": …, "mid": …, "text": …, "signedIn": …, "task": …, "app": …, "page": …}` (with `passkey` when signed in) | `{"ok": true}` |
 | Emergency | `{"action": "emergency", "conv": …, "eid": …, "at": …, "signedIn": …, "task": …, "app": …, "page": …}` | `{"ok": true}`; the service starts the emergency protocol |
+| Each tick and untick | `{"action": "tick", "job": …, "task": …, "sub": "MI-02", "checked": true, "at": …, "passkey": …}` | `{"ok": true}`; an untick is recorded too, nothing is deleted |
+| Job chosen, Sign out Cancel, Sign out Yes, station named, Install | `{"action": "event", "kind": "job-chosen" \| "signout-cancel" \| "signout-confirm" \| "station-named" \| "install", "detail": …, "at": …}` (with `passkey` when signed in) | `{"ok": true}` |
 | Status, every 20 s while anything is open | `{"action": "messages", "conv": …, "app": …, "page": …}` | `{"ok": true, "messages": [{"mid", "status", "reply"}], "emergency": {"eid", "status"}}` |
 
-Every request also carries `station`, the installation's ID (empty if none was given). `conv` is the device's conversation id, kept in the browser. Statuses are `delivered`, `opened` and `handled`. Messages and emergencies need no passkey: anyone may send. `done` lists the jobs already completed, which the pulldown leaves out. If the service omits `done`, the page falls back to what this browser remembers. The service is yet to be written; a Wolfram Cloud APIFunction is the natural home for it.
+Every request also carries `station`, the installation's ID (empty if none was given). `conv` is the device's conversation id, kept in the browser. Statuses are `delivered`, `opened` and `handled`. Messages and emergencies need no passkey: anyone may send. `done` lists the jobs already completed, which the pulldown leaves out. If the service omits `done`, the page falls back to what this browser remembers. Sign-in attempts, accepted or refused, are logged by the service itself.
+
+**Every click is sent at once, in order.** With no connection, clicks wait on the page under a small amber *Waiting to send …* sign, and are retried every 5 seconds and as soon as the connection returns; any reply means the service has the click. **Sign out completes only once the service has received every waiting click**; the job is then recorded as done. The emergency keeps retrying on its own.
 
 ## The job-authoring tool (`author/`)
 
@@ -59,7 +63,7 @@ Jobs are written in the authoring tool and kept by the service in the Wolfram Cl
 | `{"action": "getJob", "authorKey": …, "id": …}` | `{"ok": true, "job": {"id", "name", "specifics", "subtasks": [{"id", "text"}]}}` |
 | `{"action": "saveJob", "authorKey": …, "job": {…}, "was": "old ID"}` | `{"ok": true}` |
 
-The service's address is given as `?svc=https://…`; without it, or with `?mock=1`, the tool runs in test mode. Attachments are planned for a later version.
+The tool uses the service above by default (another address can be given as `?svc=https://…`), with the same base64 wire; with `?mock=1` it runs in test mode. Attachments are planned for a later version.
 
 ## An instance
 
@@ -72,7 +76,7 @@ Laid out as the witness pages in `lossofgenerality/eye-witness` are: `<folder>/<
 
 ## Test mode
 
-Add `?mock=1` to a terminal page's address: canned sub-tasks, no requests. With a passkey service, the test passkey is `123`. A dashed panel then plays the manager's side: open, reply to and mark handled messages and emergencies, or make the next send fail.
+Add `?mock=1` to a terminal page's address: canned sub-tasks, no requests. With a passkey service, the test passkey is `123`. A dashed panel then plays the manager's side: open, reply to and mark handled messages and emergencies, make the next send fail, or cut the connection to see clicks wait under *Waiting to send*; it also lists the clicks the service has received.
 
 ## Files
 

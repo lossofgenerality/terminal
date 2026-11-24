@@ -38,6 +38,8 @@ async def main():
             await pg.goto(U+'/index.html')
             ok('builder footer stamp', 'Build 2026.' in await pg.inner_text('#updatedStamp'))
             ok('service is the default', await pg.is_checked('input[name=authMode][value=remote]'))
+            ok('the service address is filled in', await pg.input_value('#authUrl')=='https://www.wolframcloud.com/obj/ccn2/TerminalKernel')
+            await pg.fill('#authUrl','')
             await pg.click('#build'); await pg.wait_for_selector('#errs:not([hidden])')
             e=await pg.inner_text('#errs'); ok('validation: name, jobs, service address', 'name' in e and 'job' in e and 'passkey service' in e)
             await pg.fill('#folder','sfx-ray'); await pg.uncheck('#mockPreview')

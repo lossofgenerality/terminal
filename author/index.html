@@ -131,10 +131,10 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
 
 <script>
 'use strict';
-const APP_BUILD = '2026.11.24-0120';   // build number, stamped at each commit
-/* where the service is: ?svc=https://… or the address below; ?mock=1 keeps the jobs in this browser instead (author key: 123) */
-const SERVICE = new URLSearchParams(location.search).get('svc') || '';
-const MOCK = /[?&]mock=1/.test(location.search) || !SERVICE;
+const APP_BUILD = '2026.11.24-0415';   // build number, stamped at each commit
+/* where the service is: the address below, or ?svc=https://… ; ?mock=1 keeps the jobs in this browser instead (author key: 123) */
+const SERVICE = new URLSearchParams(location.search).get('svc') || 'https://www.wolframcloud.com/obj/ccn2/TerminalKernel';
+const MOCK = /[?&]mock=1/.test(location.search);
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 const st = (el, cls, text) => { el.className = 'st ' + (cls || ''); el.textContent = text || ''; };
@@ -289,9 +289,11 @@ async function svc(body) {
     if (body.action === 'saveJob') { if (body.was && body.was !== body.job.id) delete S[body.was]; S[body.job.id] = body.job; save(); return { ok: true }; }
     return { ok: false };
   }
-  const r = await fetch(SERVICE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  let j = null; try { j = await r.json(); } catch (e) {}
-  if (!j) throw new Error(`Unreadable reply from the service (HTTP ${r.status}).`);
+  /* the wire, as for the terminal page: payload_b64 = base64 of the UTF-8 JSON; the reply is {"reply_b64": …} */
+  const b = new TextEncoder().encode(JSON.stringify(body)); let x = ''; for (let i = 0; i < b.length; i += 0x8000) x += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));
+  const r = await fetch(SERVICE, { method: 'POST', body: new URLSearchParams({ payload_b64: btoa(x) }) });
+  let j = null; try { j = await r.json(); if (j && typeof j.reply_b64 === 'string') j = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(j.reply_b64), c => c.charCodeAt(0)))); } catch (e) { j = null; }
+  if (!j || typeof j !== 'object') throw new Error(`Unreadable reply from the service (HTTP ${r.status}).`);
   return j;
 }
 let loadedId = '';

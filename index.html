@@ -65,7 +65,7 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
       <div><label class="f" for="pk2">The passkey again</label><input id="pk2" type="password" autocomplete="new-password"></div>
     </div>
     <div class="mute" id="keptHash" hidden>The loaded specification already holds a passkey hash; leave both boxes empty to keep it.</div>
-    <div id="remoteFields" hidden><label class="f" for="authUrl">Address of the passkey service</label><input id="authUrl" type="url" spellcheck="false" placeholder="https://www.wolframcloud.com/obj/…/CheckPasskey"></div>
+    <div id="remoteFields" hidden><label class="f" for="authUrl">Address of the passkey service</label><input id="authUrl" type="url" spellcheck="false" value="https://www.wolframcloud.com/obj/ccn2/TerminalKernel" placeholder="https://www.wolframcloud.com/obj/ccn2/TerminalKernel"></div>
     <div class="mute" style="margin-top:8px">One job per session: after signing in, the person chooses one job, and may sign out only once every sub-task of it is ticked. Signing out records the job as done, so the next sign-in offers one job fewer. With the service, the service keeps that record (see the README); with the in-page check, this device does.</div>
     <div class="choice" style="margin-top:8px"><label><input type="checkbox" id="sendPasskey"><span>Send the passkey with each sub-task request, as <code>Authorization: Bearer …</code> <span class="mute">(only for addresses that require it; they must then allow that header in CORS)</span></span></label></div>
   </section>
@@ -86,7 +86,7 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
 
 <script>
 'use strict';
-const APP_BUILD = '2026.11.24-0110';   // build number, stamped at each commit
+const APP_BUILD = '2026.11.24-0415';   // build number, stamped at each commit
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 const st = (el, cls, text) => { el.className = 'st ' + (cls || ''); el.textContent = text || ''; };
