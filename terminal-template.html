@@ -66,6 +66,7 @@ h1 { font-size:22px; margin:4px 0 0 }
 #specifics:focus { outline:2px solid var(--accent); outline-offset:1px }
 .sid { display:inline-block; font:600 12.5px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:var(--accent); background:var(--accent-soft); padding:1px 6px; border-radius:5px; margin-right:4px; white-space:nowrap }
 #subtasks li input:checked + span .sid { text-decoration:none; opacity:.7 }
+#installMsg { margin-top:8px; max-width:520px; font-size:12.5px; background:var(--accent-soft); border:1px solid var(--accent); border-radius:8px; padding:6px 10px }
 [hidden] { display:none !important }
 footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px }
 </style>
@@ -80,7 +81,9 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
 </div>
 <main>
   <header class="row" style="justify-content:space-between; align-items:center">
-    <div><h1 id="appName">__APP_NAME__</h1><button class="b p" id="installBtn" hidden style="margin-top:6px">Install app</button></div>
+    <div><h1 id="appName">__APP_NAME__</h1>
+      <button class="b p" id="installBtn" style="margin-top:8px; font-size:13px; padding:6px 12px" title="Install this page as an app on this computer, tablet or phone">Install app</button>
+      <div id="installMsg" role="status" hidden></div></div>
     <button class="estop" id="emergency" aria-label="Emergency: press to start the emergency protocol"><span>Emergency</span></button>
   </header>
 
@@ -468,15 +471,37 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
 }
 (() => {
-  let deferred = null; const btn = $('#installBtn');
+  /* the browser offers its own install only when every condition is met; this button is always shown:
+     it installs when it can, and otherwise says exactly what is in the way (as in the witness pages) */
+  let deferred = null; const btn = $('#installBtn'), box = $('#installMsg'), APPNAME = CFG.short || CFG.appName;
+  const tell = t => { box.textContent = t; box.hidden = false; clearTimeout(tell.h); tell.h = setTimeout(() => box.hidden = true, 14000); };
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isSafariMac = /Safari/.test(ua) && !/Chrome|Chromium|Edg|OPR/.test(ua) && !isIOS;
+  const isFirefox = /Firefox/.test(ua);
+  const installed = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const secure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  if (installed()) btn.hidden = true;
   addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; btn.hidden = false; });
-  addEventListener('appinstalled', () => { btn.hidden = true; deferred = null; });
-  btn.onclick = async () => { if (!deferred) return; deferred.prompt(); try { await deferred.userChoice; } catch (e) {} deferred = null; btn.hidden = true; };
+  addEventListener('appinstalled', () => { btn.hidden = true; deferred = null; tell(APPNAME + ' is installed. Open it from your desktop, apps list or home screen.'); });
+  btn.addEventListener('click', async () => {
+    if (deferred) { deferred.prompt();
+      try { const c = await deferred.userChoice; if (c && c.outcome === 'dismissed') tell('Install cancelled. Press Install app to try again.'); } catch (e) {}
+      deferred = null; return; }
+    if (installed()) return tell(APPNAME + ' is already installed.');
+    if (location.protocol === 'file:' || location.protocol === 'blob:') return tell('Opened as a file, so it cannot be installed. Put this folder on an https:// website (for example GitHub Pages) and open it from there.');
+    if (!secure) return tell('Installing needs a secure https:// address. Open ' + APPNAME + ' from an https:// link.');
+    if (isIOS) return tell('On iPhone and iPad: tap the Share button, then Add to Home Screen. (In Chrome on iPhone, the Share button is in the address bar.)');
+    if (isSafariMac) return tell('In Safari on a Mac: choose File, then Add to Dock.');
+    if (isFirefox) return tell('Firefox cannot install web apps. Open this page in Chrome or Edge, or on Android use the menu and Install.');
+    if (!('serviceWorker' in navigator)) return tell('This browser cannot install web apps. Try Chrome or Edge.');
+    tell('No install offer yet. Make sure this is not a private or incognito window, and that ' + APPNAME + ' is not already installed. Otherwise open the browser menu and choose Install ' + APPNAME + ' (or Cast, save and share, then Install page as app). On Android: menu, then Install app or Add to Home screen.');
+  });
 })();
 
 /* ---------- build stamp ---------- */
 (() => {
-  const APP_BUILD = '2026.11.24-0051';   // page design build, stamped at each commit
+  const APP_BUILD = '2026.11.24-0053';   // page design build, stamped at each commit
   const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   const slot = document.getElementById('updatedStamp');
   if (slot) slot.textContent = 'Page design build ' + APP_BUILD + (CFG.builder_build ? ' · builder build ' + CFG.builder_build : '') + ' · made ' + show(CFG.made);

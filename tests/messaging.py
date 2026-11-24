@@ -21,6 +21,8 @@ async def main():
         pg = await b.new_page(); errs = []; pg.on('pageerror', lambda e: errs.append(str(e)))
         await pg.goto('file://' + f)
         dot = lambda: pg.eval_on_selector('#msgs li .dot', 'd=>d.className')
+        ok('Install app shown at the top', await pg.is_visible('#installBtn'))
+        await pg.click('#installBtn'); ok('Install explains why it cannot install from a file', 'cannot be installed' in await pg.inner_text('#installMsg'))
         ok('warning under sign-in', 'Unauthorized Access Forbidden' in await pg.inner_text('#loginPanel'))
         # messages
         await pg.fill('#message', 'I cannot sign in'); await pg.press('#message', 'Enter')
