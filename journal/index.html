@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCN Terminal · Journal</title>
+<meta name="description" content="The manager's Journal for CCN Terminal: the floor live, and where the work slows down. From Computational Classnotes.">
+<link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0A0E13;--bar:#0D1218;--card:#10171F;--line:#1C2631;--line2:#18212B;--ink:#E6EDF3;--soft:#C5D1DC;--mute:#9FB0BF;--dim:#8B98A5;--teal:#2DD4BF;--teal2:#5EEAD4;--amber:#F59E0B;--amber2:#FCD34D;--red:#F87171;--blue:#93C5FD;--conf:#FB923C}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:15px}
+.mono{font-family:'IBM Plex Mono',ui-monospace,monospace}
+a{color:var(--teal2)}a:hover{color:#99F6E4}
+button,select,input{font:inherit}
+header.top{display:flex;flex-wrap:wrap;align-items:center;gap:24px;padding:16px 28px;border-bottom:1px solid var(--line);background:var(--bar);position:sticky;top:0;z-index:5}
+.brand{display:flex;align-items:center;gap:12px}.brand small{display:block;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}.brand b{font-size:17px;font-weight:600}
+nav.views{display:flex;flex-wrap:wrap;gap:4px}
+nav.views button{padding:8px 14px;border-radius:8px;border:0;background:transparent;color:var(--mute);cursor:pointer;font-size:14px;min-height:40px}
+nav.views button[aria-current=page]{background:#13202A;color:var(--ink);font-weight:500}
+nav.views button:hover{color:var(--ink)}
+.grow{flex-grow:1}
+.badge{padding:3px 10px;border:1px solid #3A4A5A;border-radius:999px;font-size:12px;color:var(--mute)}
+.badge.fake{border-color:#7A5A12;color:var(--amber2);background:rgba(245,158,11,.08)}
+.status{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--mute)}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--teal);box-shadow:0 0 0 4px rgba(45,212,191,.15)}
+main{max-width:1440px;margin:0 auto;padding:26px 28px 40px}
+.head{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px;justify-content:space-between}
+.kick{font-size:13px;color:var(--dim);letter-spacing:.04em}
+h1{margin:4px 0 0;font-size:32px;font-weight:600;letter-spacing:-.01em}
+h2{margin:0;font-size:18px;font-weight:600}
+h3{margin:0;font-size:16px;font-weight:600}
+.sub{font-size:13px;color:var(--mute);margin-top:2px}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.controls label{display:block;font-size:12px;color:var(--dim);margin-bottom:4px}
+select,input[type=date],input[type=text],input[type=password]{font-size:14px;padding:9px 12px;border-radius:10px;border:1px solid #2A3744;background:var(--card);color:var(--ink);color-scheme:dark;min-height:42px}
+.btn{font-size:14px;padding:9px 14px;border-radius:10px;border:1px solid #2A3744;background:transparent;color:var(--soft);cursor:pointer;min-height:42px}
+.btn:hover{border-color:#3A4A5A;color:var(--ink)}
+.btn.primary{background:var(--teal);border-color:var(--teal);color:#04211D;font-weight:600}
+.btn.danger{border-color:#5A2A2A;color:#FCA5A5}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-size:13px;padding:8px 14px;border-radius:999px;border:1px solid #2A3744;background:transparent;color:var(--soft);cursor:pointer;min-height:38px}
+.chip[aria-pressed=true]{border-color:var(--teal);background:rgba(45,212,191,.12);color:#CCFBF1}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-top:22px}
+.kpi,.card{background:var(--card);border:1px solid var(--line);border-radius:14px}
+.kpi{padding:16px 18px}
+.kpi .l{font-size:12px;color:var(--dim);letter-spacing:.06em;text-transform:uppercase}
+.kpi .v{font-family:'IBM Plex Mono',monospace;font-size:30px;font-weight:500;margin-top:8px}
+.kpi .n{font-size:13px;color:var(--mute);margin-top:4px}
+.card{padding:20px}
+.warm{background:#14110A;border-color:#4A3A12}
+.warm h3,.warm .v{color:var(--amber2)}
+.cols{display:flex;flex-wrap:wrap;gap:20px;margin-top:22px;align-items:flex-start}
+.main-col{flex:999 1 640px;min-width:0}
+.side-col{flex:1 1 340px;min-width:0;display:flex;flex-direction:column;gap:20px}
+.tables{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-top:12px}
+.tcard{display:block;text-align:left;width:100%;cursor:pointer;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.tcard:hover{border-color:#2E3E4E}
+.tcard.slow{border-color:#5A4512}
+.pill{font-size:12px;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.p-ok{background:rgba(45,212,191,.12);color:#99F6E4}.p-slow{background:rgba(245,158,11,.14);color:var(--amber2)}.p-idle{background:#18212B;color:var(--mute)}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:12px}.bar>i{display:block;height:6px;background:var(--teal)}
+.slow .bar>i{background:var(--amber)}
+.row-sp{display:flex;justify-content:space-between;gap:10px}
+.feed .it{display:grid;grid-template-columns:62px 1fr;gap:10px;padding:9px 0;border-top:1px solid var(--line2);font-size:13px}
+.long .it{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid #2E2610;font-size:14px}
+.heat{overflow-x:auto;margin-top:14px}
+.heat .g{display:grid;grid-template-columns:120px repeat(12,minmax(44px,1fr));gap:3px;min-width:720px}
+.heat .c{height:34px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:11px}
+table.t{width:100%;border-collapse:collapse;font-size:14px}
+table.t th{color:var(--dim);font-size:12px;font-weight:500;text-align:left;padding:8px 6px}
+table.t td{padding:10px 6px;border-top:1px solid var(--line2)}
+.num{text-align:right;font-family:'IBM Plex Mono',monospace}
+.spread{position:relative;height:8px;background:var(--line2);border-radius:4px}.spread>i{position:absolute;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--teal),var(--amber))}
+.hbar{height:10px;border-radius:5px;background:var(--line2);margin-top:6px}.hbar>i{display:block;height:10px;border-radius:5px}
+.tl{overflow-x:auto;margin-top:16px}
+.tl .r{display:grid;grid-template-columns:150px 1fr 80px;gap:14px;align-items:center;padding:9px 0;border-top:1px solid var(--line2);min-width:900px}
+.tl .r.hd{border-top:0;align-items:end}
+.track{position:relative;height:30px;border-radius:6px;background:repeating-linear-gradient(135deg,#1C2631 0 4px,#10171F 4px 8px)}
+.track .s{position:absolute;top:3px;bottom:3px;border-radius:4px;background:#1A7A70}
+.track .s.l{background:#E09A1A;top:2px;bottom:2px}
+.track .k{position:absolute;top:8px;bottom:8px;width:2px;background:rgba(230,255,250,.8)}
+.track .m{position:absolute;top:-5px;width:10px;height:10px;border:2px solid var(--card)}
+.track .now{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--amber2)}
+.hours{display:grid;grid-template-columns:repeat(12,minmax(0,1fr))}.hours span{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--dim);border-left:1px solid var(--line);padding-left:4px}
+.legend{display:flex;flex-wrap:wrap;gap:18px;margin-top:16px;font-size:13px;color:var(--soft)}.legend span{display:inline-flex;align-items:center;gap:8px}
+.crumbs{display:flex;flex-wrap:wrap;gap:8px;font-size:14px;color:var(--dim);align-items:center}
+.where .it{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--line2);font-size:13px}
+.step{display:grid;grid-template-columns:minmax(180px,280px) 1fr 74px;gap:16px;align-items:center;padding:11px 0;border-top:1px solid var(--line2)}
+.step .b{height:14px;background:var(--line2);border-radius:4px}.step .b>i{display:block;height:14px;border-radius:4px}
+.glist button{display:flex;width:100%;text-align:left;gap:12px;align-items:center;padding:13px 12px;border-radius:10px;border:1px solid transparent;background:transparent;color:var(--ink);cursor:pointer;margin:2px 0}
+.glist button[aria-pressed=true]{background:#13202A;border-color:#23404A}
+.tok{font-size:13px;padding:6px 8px 6px 12px;border-radius:999px;display:inline-flex;align-items:center;gap:6px}
+.tok button{border:0;background:transparent;color:var(--dim);cursor:pointer;font-size:15px;min-width:24px;min-height:24px}
+.tok.t{background:#13202A;border:1px solid #23404A}.tok.w{background:#1B1A2A;border:1px solid #34305A}
+.matrix{overflow-x:auto;margin-top:14px}.matrix table{min-width:640px}
+.sw{display:inline-block;width:14px;height:14px;border-radius:4px;border:1px solid #2A3744}
+.conf{color:var(--conf);font-weight:700}
+.hidden{display:none!important}
+.note{font-size:13px;color:#C9B98A;margin-top:12px}
+footer{margin-top:34px;font-size:12px;color:#6B7A88}
+.sr{position:absolute;left:-9999px}
+.signin{max-width:440px;margin:80px auto}
+@media (max-width:640px){main{padding:18px 14px 30px}header.top{padding:12px 14px;gap:12px}h1{font-size:26px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect x="1" y="1" width="26" height="26" rx="7" fill="none" stroke="#2DD4BF" stroke-width="2"/><path d="M8 17l4-5 4 3 5-7" fill="none" stroke="#2DD4BF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div><small>CCN Terminal</small><b>Journal</b></div>
+  </div>
+  <nav class="views" aria-label="Journal">
+    <button data-v="live">Live</button><button data-v="bottlenecks">Bottlenecks</button><button data-v="timeline">Timeline</button><button data-v="drill">Drill-down</button><button data-v="groups">Groups</button>
+  </nav>
+  <div class="grow"></div>
+  <span class="status" id="liveStatus"><span class="pulse"></span><span id="liveText">Live</span></span>
+  <span class="badge fake" id="srcBadge">Fake sample data</span>
+</header>
+<main id="app"><div class="kick">Loading the history…</div></main>
+
+<script>
+'use strict';
+/* CCN Terminal · Journal. Reads the clicks the terminals send to the service (or the fake sample) and shows the floor live
+   and where the work slows down. Everything is computed here, in the page, from the raw events.
+   Source: the fake sample (sample-data.json) by default; ?source=service reads the service with a manager key
+   (the service's Journal actions come with the next ff_terminal release; see SPEC.md).
+   © Computational Classnotes · CC BY-NC-SA 4.0 */
+const APP_BUILD = '2026.11.24-0600';
+const SERVICE = 'https://www.wolframcloud.com/obj/ccn2/TerminalKernel';
+const Q = new URLSearchParams(location.search);
+const SOURCE = Q.get('source') === 'service' ? 'service' : 'sample';
+const TZ = Q.get('tz') || 'Europe/Dublin';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const median = a => { if (!a.length) return NaN; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const pct = (a, p) => { if (!a.length) return NaN; const s = [...a].sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };
+const mmss = ms => { if (!isFinite(ms)) return '—'; const s = Math.round(ms / 1000), m = Math.floor(s / 60); return m >= 60 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')}` : `${m}:${String(s % 60).padStart(2, '0')}`; };
+const mins = ms => isFinite(ms) ? (ms / 60000).toFixed(1) : '—';
+const fmtD = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+const local = ms => { const p = {}; for (const x of fmtD.formatToParts(new Date(ms))) p[x.type] = x.value; return { date: `${p.year}-${p.month}-${p.day}`, h: +p.hour, m: +p.minute, hm: `${p.hour}:${p.minute}`, hms: `${p.hour}:${p.minute}:${p.second}` }; };
+const dayName = d => new Date(d + 'T12:00:00Z').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+const dayShort = d => new Date(d + 'T12:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+const HOURS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
+const LONG = 1.5;   // a step "runs long" past 1.5 × its usual (median) time
+
+/* ---------- the data ---------- */
+let D = null;            // { tables, workers, jobs, groups, events, ... }
+const S = { view: 'live', range: '7', from: '', to: '', group: '', job: '', day: '', liveMin: null, auto: true, dTable: '', dWorker: '', dRun: '', gSel: '' };
+const GROUPS_KEY = 'ccn-journal-groups-sample';
+
+function index(data) {
+  const E = data.events.map(e => ({ ...e, ms: Date.parse(e.time) })).sort((a, b) => a.ms - b.ms);
+  for (const e of E) { const l = local(e.ms); e.date = l.date; e.h = l.h; e.hm = l.hm; e.hms = l.hms; e.min = l.h * 60 + l.m; }
+  const sessions = [], steps = [], refused = [], messages = [], emergencies = [], open = {};
+  for (const e of E) {
+    const st = e.station;
+    if (e.action === 'signin') {
+      if (e.ok === false) { refused.push(e); continue; }
+      const s = { id: sessions.length, station: st, worker: e.worker, signin: e.ms, date: e.date, last: e.ms, job: '', chosen: null, end: null, closed: null, log: [e], ticked: new Set(), ctx: e.ctx, ip: e.ip };
+      sessions.push(s); open[st] = s; continue;
+    }
+    const s = open[st];
+    if (s) s.log.push(e);
+    if (e.action === 'event' && e.kind === 'job-chosen' && s) { s.job = e.detail; s.chosen = e.ms; s.last = e.ms; }
+    else if (e.action === 'tick' && s) {
+      const step = { s, sub: e.sub, job: e.job, station: st, worker: e.worker, ms: e.ms, dur: e.ms - s.last, checked: e.checked !== false, retry: !!e.retry, date: e.date, h: e.h };
+      s.last = e.ms; steps.push(step);
+      if (step.checked) s.ticked.add(e.sub); else s.ticked.delete(e.sub);
+    }
+    else if (e.action === 'complete' && s) s.end = e.ms;
+    else if (e.action === 'signout' && s) { s.closed = e.ms; delete open[st]; }
+    else if (e.action === 'message') messages.push(e);
+    else if (e.action === 'emergency') emergencies.push(e);
+  }
+  // usual time per sub-task (median over the whole history), for "running long"
+  const bySub = {};
+  for (const x of steps) if (x.checked) (bySub[x.job + '|' + x.sub] ||= []).push(x.dur);
+  const usual = {}; for (const k in bySub) usual[k] = median(bySub[k]);
+  for (const x of steps) x.ratio = x.dur / (usual[x.job + '|' + x.sub] || x.dur);
+  const dates = [...new Set(E.map(e => e.date))].sort();
+  return { ...data, E, sessions, steps, refused, messages, emergencies, usual, dates };
+}
+
+/* groups: the sample's, with any changes made here kept in this browser (the service will keep them for everyone) */
+function groups() {
+  if (SOURCE === 'sample') { try { const g = JSON.parse(localStorage.getItem(GROUPS_KEY) || 'null'); if (Array.isArray(g)) return g; } catch (e) {} }
+  return D.groups;
+}
+function saveGroups(list) {
+  if (SOURCE === 'sample') { try { localStorage.setItem(GROUPS_KEY, JSON.stringify(list)); } catch (e) {} D.groups = list; return Promise.resolve(); }
+  return svc({ action: 'saveGroups', groups: list }).then(j => { if (!j.ok) throw new Error(j.message || 'refused'); D.groups = list; });
+}
+const groupOf = id => groups().find(g => g.id === id);
+const inGroup = (g, station, worker) => !g || g.tables.includes(station) || g.workers.includes(worker);
+const jobName = id => (D.jobs[id] && D.jobs[id].name) || id;
+const subText = (job, sub) => { const j = D.jobs[job]; const s = j && j.subtasks.find(x => x.id === sub); return s ? s.text : ''; };
+
+/* the date range for history views */
+function range() {
+  const last = D.dates[D.dates.length - 1];
+  if (S.range === 'custom' && S.from && S.to) return [S.from, S.to];
+  if (S.range === 'all') return [D.dates[0], last];
+  const n = +S.range, i = Math.max(0, D.dates.length - n);
+  return [D.dates[i], last];
+}
+const inRange = (d, [a, b]) => d >= a && d <= b;
+
+/* ---------- the service (with ?source=service): manager key once, then a session token ---------- */
+const b64enc = s => { const b = new TextEncoder().encode(s); let x = ''; for (let i = 0; i < b.length; i += 0x8000) x += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(x); };
+const b64dec = s => new TextDecoder().decode(Uint8Array.from(atob(s), c => c.charCodeAt(0)));
+let managerToken = '';
+async function svc(body) {
+  const r = await fetch(SERVICE, { method: 'POST', body: new URLSearchParams({ payload_b64: b64enc(JSON.stringify({ ...body, ...(managerToken ? { managerToken } : {}) })) }) });
+  let j = null; try { j = await r.json(); if (j && typeof j.reply_b64 === 'string') j = JSON.parse(b64dec(j.reply_b64)); } catch (e) { j = null; }
+  if (!j) throw new Error(`Unreadable reply from the service (HTTP ${r.status}).`);
+  return j;
+}
+
+/* ---------- views ---------- */
+const VIEWS = { live: viewLive, bottlenecks: viewBottlenecks, timeline: viewTimeline, drill: viewDrill, groups: viewGroups };
+function go(v, extra) { Object.assign(S, extra || {}); S.view = v in VIEWS ? v : 'live'; if (location.hash !== '#' + S.view) history.replaceState(null, '', location.pathname + location.search + '#' + S.view); render(); }
+function render() {
+  document.querySelectorAll('nav.views button').forEach(b => b.setAttribute('aria-current', b.dataset.v === S.view ? 'page' : 'false'));
+  $('#liveStatus').classList.toggle('hidden', S.view !== 'live');
+  $('#app').innerHTML = VIEWS[S.view]() + `<footer>Journal build ${APP_BUILD} · ${SOURCE === 'sample' ? 'fake sample data, ' + D.meta.events.toLocaleString('en-GB') + ' clicks, ' + dayShort(D.meta.from) + ' – ' + dayShort(D.meta.to) : 'from the service'} · times in ${esc(TZ)} · © Computational Classnotes · CC BY-NC-SA 4.0</footer>`;
+  wire();
+}
+document.querySelector('nav.views').addEventListener('click', e => { const b = e.target.closest('button'); if (b) go(b.dataset.v); });
+addEventListener('hashchange', () => { const v = location.hash.slice(1); if (v !== S.view && v in VIEWS) go(v); });
+
+const groupChips = () => `<div class="chips" role="group" aria-label="Group">${[['', 'All tables'], ...groups().map(g => [g.id, g.name])].map(([id, n]) => `<button class="chip" data-group="${esc(id)}" aria-pressed="${S.group === id}">${esc(n)}</button>`).join('')}</div>`;
+const groupSelect = id => `<div><label for="${id}">Group</label><select id="${id}" data-bind="group"><option value="">All tables</option>${groups().map(g => `<option value="${esc(g.id)}" ${S.group === g.id ? 'selected' : ''}>${esc(g.name)}</option>`).join('')}</select></div>`;
+
+/* ===== Live: the floor right now ===== */
+function liveNow() {
+  const day = D.dates[D.dates.length - 1];
+  if (S.liveMin == null) { const l = local(Date.now()); S.liveMin = SOURCE === 'service' ? l.h * 60 + l.m : (l.h >= 6 && l.h < 18 ? l.h * 60 + l.m : 10 * 60 + 30); }
+  const ms = Date.parse(day + 'T00:00:00Z') + S.liveMin * 60000 - tzOffsetMs(day);
+  return { day, ms };
+}
+function tzOffsetMs(day) { const t = Date.parse(day + 'T12:00:00Z'), l = local(t); return ((l.h - 12) * 60 + l.m) * 60000; }
+function viewLive() {
+  const { day, ms } = liveNow(), g = groupOf(S.group), hm = local(ms).hm;
+  const todays = D.sessions.filter(s => s.date === day && s.signin <= ms && inGroup(g, s.station, s.worker));
+  const openS = todays.filter(s => !s.closed || s.closed > ms);
+  const doneToday = todays.filter(s => s.end && s.end <= ms && s.chosen);
+  const week = D.sessions.filter(s => s.end && s.chosen && s.date < day && s.date >= D.dates[Math.max(0, D.dates.length - 6)] && inGroup(g, s.station, s.worker));
+  const stepsToday = D.steps.filter(x => x.date === day && x.ms <= ms && inGroup(g, x.station, x.worker));
+  const tables = D.tables.filter(t => !g || g.tables.includes(t.id) || openS.some(s => s.station === t.id) || todays.some(s => s.station === t.id && g.workers.includes(s.worker)));
+  const cards = tables.map(t => {
+    const s = openS.find(x => x.station === t.id);
+    if (!s) { const last = todays.filter(x => x.station === t.id && x.closed && x.closed <= ms).pop(); return { t, idle: true, since: last ? last.closed : null }; }
+    const job = D.jobs[s.job], subs = job ? job.subtasks : [], ticked = new Set(D.steps.filter(x => x.s === s && x.ms <= ms).reduce((a, x) => (x.checked ? a.add(x.sub) : a.delete(x.sub), a), new Set()));
+    const lastMs = Math.max(s.signin, ...s.log.filter(e => e.ms <= ms).map(e => e.ms));
+    const next = subs.find(x => !ticked.has(x.id)), elapsed = ms - lastMs, usual = next ? D.usual[s.job + '|' + next.id] : NaN;
+    const slow = next && isFinite(usual) && elapsed > LONG * usual;
+    return { t, s, job, subs, n: subs.filter(x => ticked.has(x.id)).length, next, elapsed, usual, slow };
+  });
+  const long = cards.filter(c => c.slow).sort((a, b) => b.elapsed / b.usual - a.elapsed / a.usual);
+  const feed = D.E.filter(e => e.date === day && e.ms <= ms && inGroup(g, e.station, e.worker || (D.sessions.find(s => s.station === e.station && s.signin <= e.ms && (!s.closed || s.closed >= e.ms)) || {}).worker)).slice(-14).reverse();
+  const retries = stepsToday.filter(x => x.retry).length, msgs = D.messages.filter(e => e.date === day && e.ms <= ms && inGroup(g, e.station, e.worker)).length;
+  const k = [
+    ['Signed in', `${openS.length} / ${tables.length}`, 'tables in use now'],
+    ['Jobs done', doneToday.length, `today, by ${hm}`],
+    ['Median job', mmss(median(doneToday.map(s => s.end - s.chosen))), `last week: ${mmss(median(week.map(s => s.end - s.chosen)))}`],
+    ['Running long', long.length, `steps over ${LONG} × usual`, long.length ? 'var(--amber2)' : ''],
+    ['Press again!', retries, 'ticks confirmed only on a second press'],
+    ['Messages', msgs, D.emergencies.some(e => e.date === day && e.ms <= ms) ? 'and an EMERGENCY today' : 'no emergencies today']
+  ];
+  return `<div class="head"><div><div class="kick">${dayName(day)} · 06:00 – ${hm}${SOURCE === 'sample' ? ' · sample clock' : ''}</div><h1>The floor, right now</h1></div>${groupChips()}</div>
+  ${SOURCE === 'sample' ? `<div class="card" style="margin-top:16px;padding:12px 16px;display:flex;flex-wrap:wrap;gap:14px;align-items:center"><label for="clock" style="font-size:13px;color:var(--mute)">Sample clock</label><input id="clock" type="range" min="360" max="1080" step="5" value="${S.liveMin}" style="flex:1 1 260px;accent-color:#2DD4BF"><span class="mono" style="font-size:14px">${hm}</span><label style="font-size:13px;color:var(--mute);display:inline-flex;gap:6px;align-items:center"><input type="checkbox" id="auto" ${S.auto ? 'checked' : ''}> moves on a minute each minute</label></div>` : ''}
+  <section class="kpis" aria-label="Today in numbers">${k.map(([l, v, n, c]) => `<div class="kpi"><div class="l">${l}</div><div class="v" style="${c ? 'color:' + c : ''}">${esc(v)}</div><div class="n">${esc(n)}</div></div>`).join('')}</section>
+  <div class="cols"><section class="main-col" aria-label="Work-tables"><div class="row-sp" style="align-items:baseline"><h2>Work-tables</h2><span class="sub">${tables.length} tables · ${openS.length} signed in</span></div>
+    <div class="tables">${cards.map(c => c.idle ? `<button class="tcard" data-drill="${esc(c.t.id)}"><div class="row-sp"><span class="mono" style="font-weight:500">${esc(c.t.id)}</span><span class="pill p-idle">Idle</span></div><div class="sub" style="color:var(--dim)">${esc(tGroups(c.t.id))}</div><div style="margin-top:14px;color:var(--mute)">No one signed in</div><div class="bar"><i style="width:0"></i></div><div class="row-sp sub" style="margin-top:8px"><span>${c.since ? 'since ' + local(c.since).hm : 'not used yet today'}</span><span class="mono">${c.since ? mmss(ms - c.since) : ''}</span></div></button>`
+      : `<button class="tcard ${c.slow ? 'slow' : ''}" data-drill="${esc(c.t.id)}" data-worker="${esc(c.s.worker)}" data-run="${c.s.id}"><div class="row-sp"><span class="mono" style="font-weight:500">${esc(c.t.id)}</span><span class="pill ${c.slow ? 'p-slow' : 'p-ok'}">${c.slow ? 'Running long' : c.s.job ? 'On track' : 'Choosing a job'}</span></div><div class="sub" style="color:var(--dim)">${esc(tGroups(c.t.id))}</div><div style="margin-top:14px">${esc(c.s.worker)}</div><div class="sub">${c.job ? esc(c.s.job + ' · ' + c.job.name) : 'signed in at ' + local(c.s.signin).hm}</div><div class="bar"><i style="width:${c.subs.length ? Math.round(c.n / c.subs.length * 100) : 0}%"></i></div><div class="row-sp sub" style="margin-top:8px"><span>${c.next ? esc(c.next.id + ' ' + c.next.text) : c.job ? 'All ticked · signing out' : ''}</span><span class="mono" style="color:${c.slow ? 'var(--amber2)' : 'var(--soft)'}">${mmss(c.elapsed)}</span></div></button>`).join('')}</div></section>
+    <aside class="side-col"><section class="card warm long" aria-label="Running long now"><h3>Running long now</h3><div class="sub" style="color:#C9B98A">Steps over ${LONG} × their usual time</div>${long.length ? long.map(c => `<div class="it"><div><div>${esc(c.next.id + ' ' + c.next.text)}</div><div class="sub" style="color:#C9B98A">${esc(c.t.id + ' · ' + c.s.worker)}</div></div><div style="text-align:right"><div class="mono v">${mmss(c.elapsed)}</div><div class="sub" style="color:#C9B98A">usually ${mmss(c.usual)}</div></div></div>`).join('') : '<div class="it"><span class="sub">Nothing is running long.</span></div>'}</section>
+    <section class="card feed" aria-label="As it happens"><div class="row-sp" style="align-items:baseline"><h3>As it happens</h3><span class="sub">every click, in order</span></div>${feed.map(e => { const d = describe(e); return `<div class="it"><span class="mono" style="color:var(--dim)">${e.hm}</span><span><span style="color:${d.c};font-weight:500">${esc(d.what)}</span> <span style="color:var(--soft)">${esc(d.detail)}</span><br><span style="color:var(--dim);font-size:12px">${esc(e.station + (e.worker ? ' · ' + e.worker : ''))}</span></span></div>`; }).join('') || '<div class="it"><span></span><span class="sub">No clicks yet today.</span></div>'}</section></aside></div>`;
+}
+function tGroups(t) { return groups().filter(g => g.tables.includes(t)).map(g => g.name).join(' · ') || '—'; }
+function describe(e) {
+  if (e.action === 'signin') return e.ok === false ? { what: 'Sign-in refused', detail: 'wrong passkey', c: '#FCA5A5' } : { what: 'Signed in', detail: '', c: 'var(--soft)' };
+  if (e.action === 'tick') return e.checked === false ? { what: 'Unticked', detail: e.sub + ' ' + subText(e.job, e.sub), c: 'var(--amber2)' } : { what: e.retry ? 'Ticked after Press again!' : 'Ticked', detail: e.sub + ' ' + subText(e.job, e.sub), c: e.retry ? '#FCA5A5' : 'var(--teal2)' };
+  if (e.action === 'event') return { what: { 'job-chosen': 'Job chosen', 'signout-cancel': 'Sign out · Cancel', 'signout-confirm': 'Sign out · Yes', 'station-named': 'Station named', install: 'Install' }[e.kind] || e.kind, detail: e.kind === 'job-chosen' ? e.detail + ' · ' + jobName(e.detail) : '', c: 'var(--soft)' };
+  if (e.action === 'complete') return { what: 'Job recorded as done', detail: e.job + ' · ' + jobName(e.job), c: '#99F6E4' };
+  if (e.action === 'signout') return { what: 'Signed out', detail: '', c: 'var(--dim)' };
+  if (e.action === 'message') return { what: 'Message', detail: '“' + e.text + '”', c: 'var(--blue)' };
+  if (e.action === 'emergency') return { what: 'EMERGENCY', detail: '', c: 'var(--red)' };
+  return { what: e.action, detail: '', c: 'var(--soft)' };
+}
+
+/* ===== Bottlenecks: where the work slows down ===== */
+function viewBottlenecks() {
+  const R = range(), g = groupOf(S.group);
+  const steps = D.steps.filter(x => x.checked && inRange(x.date, R) && inGroup(g, x.station, x.worker) && (!S.job || x.job === S.job));
+  const unticks = D.steps.filter(x => !x.checked && inRange(x.date, R) && inGroup(g, x.station, x.worker) && (!S.job || x.job === S.job));
+  const runs = D.sessions.filter(s => s.end && s.chosen && inRange(s.date, R) && inGroup(g, s.station, s.worker) && (!S.job || s.job === S.job));
+  const days = D.dates.filter(d => inRange(d, R)).length;
+  // per sub-task
+  const per = {}; for (const x of steps) (per[x.job + '|' + x.sub] ||= { job: x.job, sub: x.sub, d: [], redo: 0, retry: 0 }).d.push(x.dur);
+  for (const x of unticks) per[x.job + '|' + x.sub] && per[x.job + '|' + x.sub].redo++;
+  for (const x of steps) if (x.retry) per[x.job + '|' + x.sub].retry++;
+  const subs = Object.values(per).filter(p => p.d.length >= 5).map(p => ({ ...p, med: median(p.d), p90: pct(p.d, .9), lo: pct(p.d, .1) })).sort((a, b) => b.med - a.med);
+  const maxP = Math.max(...subs.map(p => p.p90), 1);
+  // idle between jobs at a table
+  const gaps = []; const byT = {};
+  for (const s of runs) (byT[s.station + s.date] ||= []).push(s);
+  for (const k in byT) { const L = byT[k].sort((a, b) => a.signin - b.signin); for (let i = 1; i < L.length; i++) if (L[i - 1].closed) gaps.push(L[i].signin - L[i - 1].closed); }
+  // heatmap: table × hour, median step time; colour by the median ratio to each step's usual time
+  const tables = D.tables.map(t => t.id).filter(t => steps.some(x => x.station === t));
+  const cell = {}; for (const x of steps) (cell[x.station + '|' + x.h] ||= []).push(x);
+  const ramp = ['#12302F', '#14514C', '#1A7A70', '#2DA392', '#B7791F', '#E09A1A'], rfg = ['#9FD9D0', '#BFEDE6', '#E6FFFA', '#05201C', '#1A1203', '#1A1203'];
+  const shade = r => { const i = !isFinite(r) ? -1 : r < .85 ? 0 : r < .95 ? 1 : r < 1.08 ? 2 : r < 1.25 ? 3 : r < 1.55 ? 4 : 5; return i < 0 ? ['#0D1218', '#3A4A5A'] : [ramp[i], rfg[i]]; };
+  // after-14:00 pattern
+  const pattern = tables.map(t => { const a = steps.filter(x => x.station === t && x.h < 14).map(x => x.ratio), b = steps.filter(x => x.station === t && x.h >= 14).map(x => x.ratio); return { t, f: median(b) / median(a), n: b.length }; }).filter(p => p.n >= 10 && p.f >= 1.35).sort((a, b) => b.f - a.f);
+  // groups compared
+  const gc = groups().map(gr => { const L = D.sessions.filter(s => s.end && s.chosen && inRange(s.date, R) && inGroup(gr, s.station, s.worker) && (!S.job || s.job === S.job)).map(s => s.end - s.chosen); return { gr, v: median(L), n: L.length }; }).filter(x => x.n).sort((a, b) => b.v - a.v);
+  const gmax = Math.max(...gc.map(x => x.v), 1), gmed = median(gc.map(x => x.v));
+  // trouble signs
+  const tr = tables.map(t => ({ t, a: unticks.filter(x => x.station === t).length, b: steps.filter(x => x.station === t && x.retry).length, c: D.refused.filter(e => e.station === t && inRange(e.date, R)).length, d: D.messages.filter(e => e.station === t && inRange(e.date, R)).length })).map(x => ({ ...x, sum: x.a + x.b + x.c + x.d })).sort((a, b) => b.sum - a.sum).slice(0, 7);
+  const slowest = subs[0];
+  const k = [
+    ['Median step', mmss(median(steps.map(x => x.dur))), `min:sec, ${steps.length.toLocaleString('en-GB')} steps`],
+    ['Slowest step', slowest ? slowest.sub : '—', slowest ? `${subText(slowest.job, slowest.sub)} · ${mmss(slowest.med)} median` : '', 'var(--amber2)'],
+    ['Rework', steps.length ? (unticks.length / steps.length * 100).toFixed(1) + '%' : '—', 'ticks later unticked'],
+    ['Idle between jobs', mmss(median(gaps)), 'median, sign-out to next sign-in'],
+    ['Jobs done', runs.length.toLocaleString('en-GB'), `${days} working days`]
+  ];
+  return `<div class="head"><div><div class="kick">${dayShort(R[0])} – ${dayShort(R[1])} · ${days} working days · ${runs.length.toLocaleString('en-GB')} jobs · ${steps.length.toLocaleString('en-GB')} steps</div><h1>Where the work slows down</h1></div>
+    <div class="controls"><div><label for="range">Dates</label><select id="range" data-bind="range">${[['7', 'Last 7 working days'], ['3', 'Last 3 working days'], ['all', 'All of the history'], ['custom', 'Choose dates…']].map(([v, n]) => `<option value="${v}" ${S.range === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+    ${S.range === 'custom' ? `<div><label for="from">From</label><input type="date" id="from" data-bind="from" value="${S.from || D.dates[0]}" min="${D.dates[0]}" max="${D.dates[D.dates.length - 1]}"></div><div><label for="to">To</label><input type="date" id="to" data-bind="to" value="${S.to || D.dates[D.dates.length - 1]}" min="${D.dates[0]}" max="${D.dates[D.dates.length - 1]}"></div>` : ''}
+    ${groupSelect('grp')}<div><label for="job">Job</label><select id="job" data-bind="job"><option value="">All jobs</option>${Object.values(D.jobs).map(j => `<option value="${esc(j.id)}" ${S.job === j.id ? 'selected' : ''}>${esc(j.id + ' · ' + j.name)}</option>`).join('')}</select></div>
+    <button class="btn" id="csv">Download CSV</button></div></div>
+  <section class="kpis" aria-label="In numbers">${k.map(([l, v, n, c]) => `<div class="kpi"><div class="l">${l}</div><div class="v" style="${c ? 'color:' + c : ''}">${esc(v)}</div><div class="n">${esc(n)}</div></div>`).join('')}</section>
+  <section class="card" style="margin-top:20px" aria-label="Step time by table and hour"><div class="row-sp" style="flex-wrap:wrap;align-items:baseline"><div><h2>Step time, by table and hour</h2><div class="sub">Median minutes per sub-task. The colour compares each step with its own usual time: amber is slower than usual.</div></div><div class="sub" style="display:flex;gap:8px;align-items:center">faster <span style="display:inline-flex">${ramp.map(c => `<span style="width:22px;height:12px;background:${c}"></span>`).join('')}</span> slower</div></div>
+    <div class="heat"><div class="g"><span></span>${HOURS.map(h => `<span class="mono" style="font-size:11px;color:var(--dim);text-align:center">${String(h).padStart(2, '0')}</span>`).join('')}</div>
+    ${tables.map(t => `<div class="g" style="margin-top:3px"><button class="mono" data-drill="${esc(t)}" style="all:unset;cursor:pointer;font-size:13px;color:var(--soft);align-self:center">${esc(t)}</button>${HOURS.map(h => { const L = cell[t + '|' + h] || [], [bg, fg] = shade(median(L.map(x => x.ratio))); return `<span class="c" style="background:${bg};color:${fg}" title="${esc(t)} ${h}:00 · ${L.length} steps">${L.length ? mins(median(L.map(x => x.dur))) : ''}</span>`; }).join('')}</div>`).join('')}</div>
+    ${pattern.length ? `<div class="note">Pattern: ${pattern.map(p => `${esc(p.t)} is ${p.f.toFixed(1)} × slower after 14:00`).join('; ')}, when the second shift starts.</div>` : ''}</section>
+  <div class="cols"><section class="card main-col" aria-label="Slowest sub-tasks"><h2>The slowest sub-tasks</h2><div class="sub">Median and the slowest tenth (p90). A wide spread means the step is unpredictable, not only slow.</div>
+    <div style="overflow-x:auto;margin-top:10px"><table class="t" style="min-width:640px"><thead><tr><th>Sub-task</th><th>Job</th><th class="num">Median</th><th class="num">p90</th><th style="width:28%">Spread (p10 – p90)</th><th class="num">Unticks</th><th class="num">Again!</th></tr></thead><tbody>
+    ${subs.slice(0, 9).map(p => `<tr><td><span class="mono" style="color:var(--dim);margin-right:8px">${esc(p.sub)}</span>${esc(subText(p.job, p.sub))}</td><td style="color:var(--mute)">${esc(jobName(p.job))}</td><td class="num">${mmss(p.med)}</td><td class="num" style="color:var(--amber2)">${mmss(p.p90)}</td><td><div class="spread"><i style="left:${(p.lo / maxP * 100).toFixed(1)}%;width:${Math.max(1, (p.p90 - p.lo) / maxP * 100).toFixed(1)}%"></i></div></td><td class="num" style="color:${p.redo > 10 ? 'var(--amber2)' : 'var(--soft)'}">${p.redo}</td><td class="num" style="color:${p.retry > 10 ? '#FCA5A5' : 'var(--soft)'}">${p.retry}</td></tr>`).join('')}
+    </tbody></table></div></section>
+    <aside class="side-col"><section class="card" aria-label="Groups compared"><h3>Groups compared</h3><div class="sub">Median job time; a job can count in several groups</div>${gc.map(x => `<div style="margin-top:14px"><div class="row-sp" style="font-size:13px"><span>${esc(x.gr.name)}</span><span class="mono" style="color:${x.v > gmed * 1.15 ? 'var(--amber2)' : 'var(--teal2)'}">${mmss(x.v)}</span></div><div class="hbar"><i style="width:${(x.v / gmax * 100).toFixed(1)}%;background:${x.v > gmed * 1.15 ? 'var(--amber)' : 'var(--teal)'}"></i></div></div>`).join('')}</section>
+    <section class="card" aria-label="Trouble signs"><h3>Trouble signs</h3><div class="sub">By table, in these dates</div><table class="t" style="margin-top:8px;font-size:13px"><thead><tr><th></th><th class="num">Unticks</th><th class="num">Again!</th><th class="num">Refused</th><th class="num">Msgs</th></tr></thead><tbody>${tr.map(x => `<tr><td class="mono" style="color:var(--soft);white-space:nowrap">${esc(x.t)}</td><td class="num">${x.a}</td><td class="num">${x.b}</td><td class="num">${x.c}</td><td class="num">${x.d}</td></tr>`).join('')}</tbody></table></section></aside></div>`;
+}
+
+/* ===== Timeline: a day at every table ===== */
+function viewTimeline() {
+  const day = S.day || D.dates[D.dates.length - 1], g = groupOf(S.group), i = D.dates.indexOf(day);
+  const P = ms => { const l = local(ms); return Math.max(0, Math.min(100, ((l.h - 6) * 60 + l.m + (+l.hms.slice(6)) / 60) / 720 * 100)); };
+  const live = day === D.dates[D.dates.length - 1] && S.view === 'timeline' ? liveNow().ms : null;
+  const tables = D.tables.map(t => t.id).filter(t => !g || g.tables.includes(t) || D.sessions.some(s => s.date === day && s.station === t && g.workers.includes(s.worker)));
+  let stall = null, idle = null, busy = null;
+  const rows = tables.map(t => {
+    const ss = D.sessions.filter(s => s.date === day && s.station === t && (!g || g.tables.includes(t) || g.workers.includes(s.worker)) && (!live || s.signin <= live));
+    const st = D.steps.filter(x => x.date === day && x.station === t && ss.includes(x.s) && (!live || x.ms <= live));
+    const marks = [...D.messages.filter(e => e.date === day && e.station === t).map(e => ({ ms: e.ms, c: 'var(--blue)', r: '50%', tip: 'Message: ' + e.text })),
+      ...D.refused.filter(e => e.date === day && e.station === t).map(e => ({ ms: e.ms, c: 'var(--red)', r: '1px', rot: 1, tip: 'Sign-in refused' })),
+      ...st.filter(x => x.retry).map(x => ({ ms: x.ms, c: 'var(--red)', r: '1px', rot: 1, tip: 'Press again! ' + x.sub })),
+      ...D.emergencies.filter(e => e.date === day && e.station === t).map(e => ({ ms: e.ms, c: '#DC2626', r: '50%', tip: 'EMERGENCY' }))].filter(m => !live || m.ms <= live);
+    let b = 0; const segs = ss.filter(s => s.chosen).map(s => { const end = s.end || (live && (!s.closed || s.closed > live) ? live : s.closed || s.last); b += end - s.chosen; return { l: P(s.chosen), w: Math.max(.3, P(end) - P(s.chosen)), tip: `${s.worker} · ${s.job} ${jobName(s.job)} · ${local(s.chosen).hm}–${local(end).hm}` }; });
+    const longs = st.filter(x => x.checked && x.ratio > LONG && x.dur > 120000).map(x => ({ l: P(x.ms - x.dur), w: Math.max(.3, P(x.ms) - P(x.ms - x.dur)), tip: `${x.sub} ${subText(x.job, x.sub)} · ${mmss(x.dur)} (usually ${mmss(D.usual[x.job + '|' + x.sub])})` }));
+    for (const x of st) if (x.checked && (!stall || x.dur > stall.dur)) stall = x;
+    const sorted = [...ss].sort((a, b) => a.signin - b.signin);
+    for (let k = 1; k < sorted.length; k++) if (sorted[k - 1].closed) { const gap = sorted[k].signin - sorted[k - 1].closed; if (!idle || gap > idle.gap) idle = { gap, t, a: sorted[k - 1].closed, b: sorted[k].signin }; }
+    const who = [...new Set(ss.map(s => s.worker))].join(' · ');
+    if (!busy || b > busy.b) busy = { t, b, who };
+    return `<div class="r"><button data-drill="${esc(t)}" data-day="${day}" style="all:unset;cursor:pointer"><div class="mono" style="font-size:13px">${esc(t)}</div><div style="font-size:12px;color:var(--dim)">${esc(who || 'no one')}</div></button>
+      <div class="track" role="img" aria-label="${esc(t)}: ${ss.length} jobs, ${longs.length} steps running long">${segs.map(s => `<div class="s" style="left:${s.l}%;width:${s.w}%" title="${esc(s.tip)}"></div>`).join('')}${longs.map(s => `<div class="s l" style="left:${s.l}%;width:${s.w}%" title="${esc(s.tip)}"></div>`).join('')}${st.filter(x => x.checked).map(x => `<div class="k" style="left:${P(x.ms)}%"></div>`).join('')}${marks.map(m => `<div class="m" style="left:calc(${P(m.ms)}% - 5px);background:${m.c};border-radius:${m.r};${m.rot ? 'transform:rotate(45deg)' : ''}" title="${esc(local(m.ms).hm + ' · ' + m.tip)}"></div>`).join('')}${live ? `<div class="now" style="left:${P(live)}%" title="now"></div>` : ''}</div>
+      <div class="mono" style="text-align:right;font-size:13px;color:var(--soft)">${mmss(b)}</div></div>`;
+  });
+  return `<div class="head"><div><div class="kick">${dayName(day)} · 06:00 – 18:00${g ? ' · ' + esc(g.name) : ''}</div><h1>A day at every table</h1></div>
+    <div class="controls"><button class="btn" id="prevDay" aria-label="Previous day" ${i <= 0 ? 'disabled' : ''}>‹</button><div><label for="day" class="sr">Day</label><select id="day" data-bind="day">${D.dates.map(d => `<option value="${d}" ${d === day ? 'selected' : ''}>${dayShort(d)}</option>`).join('')}</select></div><button class="btn" id="nextDay" aria-label="Next day" ${i >= D.dates.length - 1 ? 'disabled' : ''}>›</button>${groupSelect('tgrp')}</div></div>
+  <div class="legend"><span><span style="width:22px;height:12px;border-radius:3px;background:#1A7A70"></span>Job in progress</span><span><span style="width:22px;height:12px;border-radius:3px;background:#E09A1A"></span>A step running long</span><span><span style="width:22px;height:12px;border-radius:3px;background:repeating-linear-gradient(135deg,#1C2631 0 4px,#10171F 4px 8px)"></span>Idle</span><span><span style="width:3px;height:14px;background:#E6FFFA"></span>Tick</span><span><span style="width:10px;height:10px;border-radius:50%;background:var(--blue)"></span>Message</span><span><span style="width:10px;height:10px;transform:rotate(45deg);background:var(--red)"></span>Press again! or refused sign-in</span>${live ? '<span><span style="width:2px;height:14px;background:var(--amber2)"></span>Now</span>' : ''}</div>
+  <section class="card tl" aria-label="Timeline"><div class="r hd"><span style="font-size:12px;color:var(--dim)">Table · workers</span><div class="hours">${HOURS.map(h => `<span>${String(h).padStart(2, '0')}</span>`).join('')}</div><span style="font-size:12px;color:var(--dim);text-align:right">Busy</span></div>${rows.join('')}</section>
+  <section style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-top:18px">
+    <div class="card warm"><div class="kpi" style="all:unset"><div style="font-size:12px;color:#C9B98A;text-transform:uppercase;letter-spacing:.06em">Longest step</div></div><div style="font-size:16px;margin-top:6px">${stall ? esc(stall.station + ' · ' + stall.sub + ' ' + subText(stall.job, stall.sub)) : '—'}</div><div class="mono v" style="font-size:14px;margin-top:4px">${stall ? `${local(stall.ms - stall.dur).hm} – ${local(stall.ms).hm} · ${mmss(stall.dur)}` : ''}</div></div>
+    <div class="card"><div style="font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em">Longest idle</div><div style="font-size:16px;margin-top:6px">${idle ? esc(idle.t) : '—'}</div><div class="mono" style="font-size:14px;color:var(--soft);margin-top:4px">${idle ? `${local(idle.a).hm} – ${local(idle.b).hm} · ${mmss(idle.gap)}` : ''}</div></div>
+    <div class="card"><div style="font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em">Busiest table</div><div style="font-size:16px;margin-top:6px">${busy ? esc(busy.t + ' · ' + busy.who) : '—'}</div><div class="mono" style="font-size:14px;color:var(--soft);margin-top:4px">${busy ? mmss(busy.b) + ' at work of 12 h' : ''}</div></div></section>`;
+}
+
+/* ===== Drill-down: group › table › worker › job ===== */
+function viewDrill() {
+  const R = range(), last = D.dates[D.dates.length - 1];
+  const table = S.dTable || 'Mail-Room1';
+  const ws = [...new Set(D.sessions.filter(s => s.station === table).map(s => s.worker))].sort();
+  const worker = ws.includes(S.dWorker) ? S.dWorker : ws[0] || '';
+  const runs = D.sessions.filter(s => s.station === table && s.worker === worker && s.chosen).sort((a, b) => b.signin - a.signin);
+  const run = runs.find(s => String(s.id) === String(S.dRun)) || runs[0];
+  const g = groups().filter(x => x.tables.includes(table) || x.workers.includes(worker));
+  const wr = D.sessions.filter(s => s.worker === worker && inRange(s.date, R));
+  const wDone = wr.filter(s => s.end), wTime = wr.reduce((a, s) => a + ((s.closed || s.last) - s.signin), 0);
+  const wUn = D.steps.filter(x => x.worker === worker && !x.checked && inRange(x.date, R)).length, wRetry = D.steps.filter(x => x.worker === worker && x.retry && inRange(x.date, R)).length;
+  const lastIn = [...D.E].reverse().find(e => e.station === table && e.action === 'signin' && e.ok !== false && (e.ctx || e.ip));
+  const ctx = (lastIn && lastIn.ctx) || {};
+  let body = '<div class="card" style="margin-top:20px">No job runs here yet.</div>';
+  if (run) {
+    const st = D.steps.filter(x => x.s === run), endMs = run.end || run.closed || run.last;
+    const parts = [{ id: '—', text: 'Sign in → job chosen', at: `${local(run.signin).hms} → ${local(run.chosen).hms}`, d: run.chosen - run.signin, gap: true }, ...st.map(x => ({ id: x.sub, text: (x.checked ? '' : 'untick · ') + subText(x.job, x.sub), at: '→ ' + local(x.ms).hms, d: x.dur, r: x.ratio, un: !x.checked, retry: x.retry }))];
+    const lastTick = st.length ? st[st.length - 1].ms : run.chosen;
+    if (run.closed) parts.push({ id: '—', text: 'Last tick → Sign out', at: '→ ' + local(run.closed).hms, d: (run.end || run.closed) - lastTick, gap: true });
+    const max = Math.max(...parts.map(p => p.d), 1), worst = parts.filter(p => !p.gap).sort((a, b) => (b.r || 0) - (a.r || 0))[0];
+    body = `<div class="head" style="margin-top:22px"><div><div class="kick">${dayName(run.date)} · ${local(run.signin).hms} – ${local(endMs).hms}</div><h1>${esc(worker)} · ${esc(jobName(run.job))}</h1></div><div class="chips"><span class="pill ${run.end ? 'p-ok' : 'p-idle'}" style="font-size:13px;padding:7px 12px">${run.end ? 'Recorded as done' : 'Not finished'}</span><span class="pill p-idle" style="font-size:13px;padding:7px 12px">${st.filter(x => x.checked).length} ticks · ${st.filter(x => !x.checked).length} unticks · ${st.filter(x => x.retry).length} Press again!</span></div></div>
+    <div class="cols"><aside class="side-col"><section class="card"><div style="display:flex;align-items:center;gap:14px"><span style="width:48px;height:48px;border-radius:50%;background:#133A37;color:#99F6E4;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:18px">${esc(worker.slice(0, 1))}</span><div><div style="font-size:18px;font-weight:600">${esc(worker)}</div><div class="sub" style="color:var(--dim)">Worker · ${dayShort(R[0])} – ${dayShort(R[1])}</div></div></div>
+      <div class="kpi" style="all:unset;display:block;margin-top:18px;font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em">Groups</div><div class="chips" style="margin-top:8px">${g.map(x => `<span class="pill p-idle" style="border:1px solid #2A3744">${esc(x.name)}</span>`).join('') || '<span class="sub">none</span>'}</div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px">${[[wDone.length, 'jobs done'], [mmss(wTime), 'signed in'], [wUn, 'unticks'], [wRetry, 'Press again!']].map(([v, l]) => `<div><div class="mono" style="font-size:22px">${v}</div><div class="sub" style="color:var(--dim)">${l}</div></div>`).join('')}</div></section>
+      <section class="card where"><h3>Where, and on what</h3><div class="sub">From the latest sign-in at ${esc(table)}</div>${[['Work-table', table], ['Time zone', ctx.tz || '—'], ['Local time', ctx.local ? ctx.local.replace('T', ' ') : '—'], ['IP address', (lastIn && lastIn.ip) || '—'], ['Position', ctx.gps ? `${ctx.gps.lat}, ${ctx.gps.lon} (± ${ctx.gps.acc} m)` : 'not shared'], ['Device', ctx.device || '—']].map(([k, v]) => `<div class="it"><span style="color:var(--dim)">${k}</span><span class="mono" style="text-align:right;color:var(--soft)">${esc(v)}</span></div>`).join('')}</section></aside>
+    <section class="main-col" style="display:flex;flex-direction:column;gap:20px"><div class="card"><h2>Time per step</h2><div class="sub">From the click before to this one; amber is over ${LONG} × the step's usual time</div>${parts.map(p => { const slow = p.gap ? p.d > 300000 : p.r > LONG; return `<div class="step"><div><span class="mono" style="color:var(--dim);margin-right:8px">${esc(p.id)}</span><span style="${p.un ? 'color:var(--amber2)' : ''}">${esc(p.text)}</span>${p.retry ? ' <span style="color:#FCA5A5;font-size:12px;font-weight:700">Press again!</span>' : ''}<div class="mono" style="font-size:12px;color:var(--dim);margin-top:2px">${esc(p.at)}</div></div><div class="b"><i style="width:${Math.max(1, p.d / max * 100).toFixed(1)}%;background:${slow ? '#E09A1A' : p.gap ? '#3A4A5A' : '#1A7A70'}"></i></div><span class="mono" style="text-align:right;font-size:15px;color:${slow ? 'var(--amber2)' : 'var(--soft)'}">${mmss(p.d)}</span></div>`; }).join('')}
+      ${worst && worst.r > LONG ? `<div class="note">The slowest step against its usual time: ${esc(worst.id)} ${esc(worst.text)}, ${(worst.r).toFixed(1)} × usual.</div>` : ''}</div>
+      <div class="card"><div class="row-sp" style="flex-wrap:wrap;align-items:baseline"><h2>Every click, as the cloud received it</h2><button class="btn" id="csvRun">Download CSV</button></div><div style="overflow-x:auto;margin-top:10px"><table class="t" style="min-width:560px"><thead><tr><th>Time</th><th>Click</th><th>Detail</th><th>Receipt</th></tr></thead><tbody>${run.log.map(e => { const d = describe(e); return `<tr><td class="mono" style="color:var(--mute)">${e.hms}</td><td style="color:${d.c}">${esc(d.what)}</td><td style="color:var(--soft)">${esc(d.detail)}</td><td class="conf">Confirmed</td></tr>`; }).join('')}</tbody></table></div></div></section></div>`;
+  }
+  return `<nav class="crumbs" aria-label="Breadcrumb">${g.length ? `<span>${esc(g.map(x => x.name).join(', '))}</span><span aria-hidden="true">/</span>` : ''}<span class="mono">${esc(table)}</span><span aria-hidden="true">/</span><span>${esc(worker)}</span>${run ? `<span aria-hidden="true">/</span><span style="color:var(--ink)">${esc(run.job + ' · ' + jobName(run.job))}</span>` : ''}</nav>
+    <div class="controls" style="margin-top:14px"><div><label for="dTable">Work-table</label><select id="dTable" data-bind="dTable">${D.tables.map(t => `<option ${t.id === table ? 'selected' : ''}>${esc(t.id)}</option>`).join('')}</select></div>
+      <div><label for="dWorker">Worker</label><select id="dWorker" data-bind="dWorker">${ws.map(w => `<option ${w === worker ? 'selected' : ''}>${esc(w)}</option>`).join('')}</select></div>
+      <div><label for="dRun">Job run</label><select id="dRun" data-bind="dRun">${runs.slice(0, 200).map(s => `<option value="${s.id}" ${run && s.id === run.id ? 'selected' : ''}>${dayShort(s.date)} ${local(s.chosen).hm} · ${esc(s.job + ' ' + jobName(s.job))}${s.end ? '' : ' (open)'}</option>`).join('')}</select></div>
+      <div><label for="drange">Worker figures over</label><select id="drange" data-bind="range">${[['7', 'Last 7 working days'], ['3', 'Last 3 working days'], ['all', 'All of the history']].map(([v, n]) => `<option value="${v}" ${S.range === v ? 'selected' : ''}>${n}</option>`).join('')}</select></div></div>${body}`;
+}
+
+/* ===== Groups: tables and workers, an entity may be in several ===== */
+function viewGroups() {
+  const G = groups(), sel = G.find(g => g.id === S.gSel) || G[0];
+  const tAll = D.tables.map(t => t.id), wAll = D.workers;
+  const rows = [...tAll.map(n => ({ n, kind: 'table' })), ...wAll.map(n => ({ n, kind: 'worker' }))];
+  return `<div class="head"><div><div class="kick">group / work-table / worker${SOURCE === 'sample' ? ' · changes here are kept in this browser (sample)' : ' · shared with the admin tool'}</div><h1>Groups</h1></div><div class="controls"><button class="btn primary" id="gNew">New group</button>${SOURCE === 'sample' ? '<button class="btn" id="gReset">Back to the sample\'s groups</button>' : ''}</div></div>
+  <div class="cols"><section class="card glist" style="padding:8px;flex:1 1 320px;min-width:0" aria-label="All groups">${G.map(g => `<button data-gsel="${esc(g.id)}" aria-pressed="${sel && g.id === sel.id}"><span class="sw" style="background:${esc(g.color)};border-color:${esc(g.color)}"></span><span class="grow"><span style="display:block;font-weight:500">${esc(g.name)}</span><span style="display:block;font-size:12px;color:var(--dim);margin-top:2px">${esc(g.basis || '')}</span></span><span class="mono" style="font-size:12px;color:var(--mute)">${g.tables.length} · ${g.workers.length}</span></button>`).join('')}</section>
+  ${sel ? `<section class="main-col" style="display:flex;flex-direction:column;gap:20px"><div class="card"><div style="display:flex;flex-wrap:wrap;gap:16px"><div style="flex:2 1 260px"><label for="gName" style="display:block;font-size:12px;color:var(--dim);margin-bottom:6px">Name</label><input id="gName" type="text" value="${esc(sel.name)}" maxlength="40" style="width:100%"></div><div style="flex:1 1 220px"><label for="gBasis" style="display:block;font-size:12px;color:var(--dim);margin-bottom:6px">What makes the group (a note)</label><input id="gBasis" type="text" value="${esc(sel.basis || '')}" maxlength="80" style="width:100%"></div></div>
+    <div style="font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-top:22px">Work-tables</div><div class="chips" style="margin-top:10px">${sel.tables.map(t => `<span class="tok t mono">${esc(t)}<button data-gdel="t" data-n="${esc(t)}" aria-label="Remove ${esc(t)}">×</button></span>`).join('')}<label for="gAddT" class="sr">Add a work-table</label><select id="gAddT"><option value="">+ add a table</option>${tAll.filter(t => !sel.tables.includes(t)).map(t => `<option>${esc(t)}</option>`).join('')}</select></div>
+    <div style="font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-top:22px">Workers</div><div class="chips" style="margin-top:10px">${sel.workers.map(w => `<span class="tok w">${esc(w)}<button data-gdel="w" data-n="${esc(w)}" aria-label="Remove ${esc(w)}">×</button></span>`).join('')}<label for="gAddW" class="sr">Add a worker</label><select id="gAddW"><option value="">+ add a worker</option>${wAll.filter(w => !sel.workers.includes(w)).map(w => `<option>${esc(w)}</option>`).join('')}</select></div>
+    <div class="sub" style="margin-top:18px">${sel.tables.length && sel.workers.length ? 'Counts the work at these tables, and the work of these workers at any table.' : sel.tables.length ? 'Counts all the work done at these tables, by anyone.' : sel.workers.length ? 'Counts all the work of these workers, at any table.' : 'Add tables or workers.'}</div>
+    <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap"><button class="btn primary" id="gSave">Save</button><button class="btn" id="gSee">See its bottlenecks</button><div class="grow"></div><button class="btn danger" id="gDel">Delete group</button></div><div class="sub" id="gStat" role="status"></div></div>
+    <div class="card"><h2>Who is in which group</h2><div class="sub">One table or worker can sit in several groups; its work counts in each.</div><div class="matrix"><table class="t" style="font-size:13px"><thead><tr><th></th>${G.map(g => `<th style="text-align:center">${esc(g.name)}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr><td><span class="mono">${esc(r.n)}</span> <span style="color:var(--dim);font-size:12px">${r.kind}</span></td>${G.map(g => { const on = r.kind === 'table' ? g.tables.includes(r.n) : g.workers.includes(r.n); return `<td style="text-align:center"><span class="sw" style="${on ? `background:${esc(g.color)};border-color:${esc(g.color)}` : ''}" aria-label="${on ? 'in' : 'not in'} ${esc(g.name)}" role="img"></span></td>`; }).join('')}</tr>`).join('')}</tbody></table></div></div></section>` : ''}</div>`;
+}
+
+/* ---------- wiring after each render ---------- */
+function wire() {
+  document.querySelectorAll('[data-bind]').forEach(el => el.addEventListener('change', () => { const k = el.dataset.bind; S[k] = el.value; if (k === 'dTable') { S.dWorker = ''; S.dRun = ''; } if (k === 'dWorker') S.dRun = ''; render(); }));
+  document.querySelectorAll('[data-group]').forEach(b => b.addEventListener('click', () => { S.group = b.dataset.group; render(); }));
+  document.querySelectorAll('[data-drill]').forEach(b => b.addEventListener('click', () => {
+    const t = b.dataset.drill, w = b.dataset.worker, run = b.dataset.run, day = b.dataset.day;
+    let r = run;
+    if (!r && day) { const s = D.sessions.filter(x => x.station === t && x.date === day && x.chosen).pop(); if (s) { r = s.id; S.dWorker = s.worker; } }
+    go('drill', { dTable: t, dWorker: w || S.dWorker, dRun: r || '' });
+  }));
+  const clock = $('#clock'); if (clock) { clock.addEventListener('input', () => { S.liveMin = +clock.value; S.auto = false; render(); }); }
+  const auto = $('#auto'); if (auto) auto.addEventListener('change', () => { S.auto = auto.checked; });
+  const pd = $('#prevDay'), nd = $('#nextDay'), di = D.dates.indexOf(S.day || D.dates[D.dates.length - 1]);
+  if (pd) pd.onclick = () => { S.day = D.dates[Math.max(0, di - 1)]; render(); };
+  if (nd) nd.onclick = () => { S.day = D.dates[Math.min(D.dates.length - 1, di + 1)]; render(); };
+  const csv = $('#csv'); if (csv) csv.onclick = () => downloadCSV('journal-steps.csv', D.steps.filter(x => inRange(x.date, range()) && inGroup(groupOf(S.group), x.station, x.worker) && (!S.job || x.job === S.job)).map(x => ({ date: x.date, time: local(x.ms).hms, table: x.station, worker: x.worker, job: x.job, sub: x.sub, ticked: x.checked, retry: x.retry, seconds: Math.round(x.dur / 1000), vs_usual: x.ratio.toFixed(2) })));
+  const cr = $('#csvRun'); if (cr) cr.onclick = () => { const s = D.sessions.find(x => String(x.id) === String($('#dRun').value)); if (s) downloadCSV('journal-run.csv', s.log.map(e => ({ time: e.time, action: e.action, kind: e.kind || '', sub: e.sub || '', checked: e.checked ?? '', retry: e.retry || false, worker: e.worker || '', table: e.station }))); };
+  // groups
+  document.querySelectorAll('[data-gsel]').forEach(b => b.addEventListener('click', () => { S.gSel = b.dataset.gsel; render(); }));
+  const G = groups(), sel = G.find(g => g.id === S.gSel) || G[0];
+  const edit = f => { const L = groups().map(g => g.id === sel.id ? f({ ...g, tables: [...g.tables], workers: [...g.workers] }) : g); D.groups = L; if (SOURCE === 'sample') saveGroups(L); S.gSel = sel.id; render(); };
+  document.querySelectorAll('[data-gdel]').forEach(b => b.addEventListener('click', () => edit(g => { const k = b.dataset.gdel === 't' ? 'tables' : 'workers'; g[k] = g[k].filter(x => x !== b.dataset.n); return g; })));
+  const at = $('#gAddT'), aw = $('#gAddW');
+  if (at) at.onchange = () => at.value && edit(g => (g.tables.push(at.value), g));
+  if (aw) aw.onchange = () => aw.value && edit(g => (g.workers.push(aw.value), g));
+  const gs = $('#gSave'); if (gs) gs.onclick = () => { const name = $('#gName').value.trim(), basis = $('#gBasis').value.trim(); if (!name) { $('#gStat').textContent = 'Give the group a name.'; return; } const L = groups().map(g => g.id === sel.id ? { ...g, name, basis } : g); saveGroups(L).then(() => { S.gSel = sel.id; render(); $('#gStat').innerHTML = '<span class="conf">Confirmed</span> Saved.'; }).catch(e => { $('#gStat').textContent = 'Not saved: ' + e.message; }); };
+  const gd = $('#gDel'); if (gd) gd.onclick = () => { if (!confirm(`Delete the group "${sel.name}"? Its tables and workers stay; only the group goes.`)) return; const L = groups().filter(g => g.id !== sel.id); saveGroups(L).then(() => { S.gSel = ''; render(); }); };
+  const gn = $('#gNew'); if (gn) gn.onclick = () => { const id = 'g' + Date.now().toString(36), colors = ['#2DD4BF', '#60A5FA', '#F59E0B', '#A78BFA', '#F472B6', '#FB923C', '#4ADE80', '#94A3B8']; const L = [...groups(), { id, name: 'New group', basis: '', color: colors[groups().length % colors.length], tables: [], workers: [] }]; saveGroups(L).then(() => { S.gSel = id; render(); $('#gName').focus(); $('#gName').select(); }); };
+  const gr = $('#gReset'); if (gr) gr.onclick = () => { try { localStorage.removeItem(GROUPS_KEY); } catch (e) {} D.groups = D.sampleGroups; S.gSel = ''; render(); };
+  const see = $('#gSee'); if (see) see.onclick = () => go('bottlenecks', { group: sel.id });
+}
+function downloadCSV(name, rows) {
+  if (!rows.length) return;
+  const cols = Object.keys(rows[0]), q = v => /[",\n]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
+  const blob = new Blob([cols.join(',') + '\n' + rows.map(r => cols.map(c => q(r[c])).join(',')).join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/* ---------- live: a minute at a time ---------- */
+setInterval(() => {
+  if (!D || document.visibilityState !== 'visible') return;
+  if (SOURCE === 'sample' && S.auto && S.liveMin != null) S.liveMin = Math.min(1080, S.liveMin + 1);
+  if (S.view === 'live' || (S.view === 'timeline' && (!S.day || S.day === D.dates[D.dates.length - 1]))) {
+    if (SOURCE === 'service') load().then(render).catch(() => {}); else render();
+  }
+  $('#liveText').textContent = 'Live · updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: TZ }) + ', every minute';
+}, 60000);
+
+/* ---------- start ---------- */
+async function load() {
+  if (SOURCE === 'sample') {
+    const r = await fetch('sample-data.json', { cache: 'no-store' }); if (!r.ok) throw new Error('could not load sample-data.json (HTTP ' + r.status + ')');
+    const data = await r.json(); D = index(data); D.sampleGroups = data.groups; return;
+  }
+  if (!managerToken) throw new Error('signin');
+  const to = local(Date.now()).date, from = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
+  const j = await svc({ action: 'journal', from, to }); if (!j.ok) throw new Error(j.message || 'the service refused');
+  const data = { meta: { events: j.events.length, from, to }, tables: j.tables, workers: j.workers, jobs: j.jobs, groups: j.groups || [], events: j.events };
+  D = index(data); D.sampleGroups = data.groups;
+}
+function signinView(msg) {
+  $('#app').innerHTML = `<div class="card signin"><h2>Journal sign-in</h2><div class="sub" style="margin:6px 0 16px">Managers only. The key is sent once; the session that follows uses a token.</div><form id="mform"><label for="mkey" style="display:block;font-size:12px;color:var(--dim);margin-bottom:6px">Manager key</label><input id="mkey" type="password" autocomplete="current-password" style="width:100%"><div style="color:#FCA5A5;font-size:13px;margin-top:8px">Warning: Unauthorized Access Forbidden</div><div class="sub" id="mstat" role="status" style="margin-top:8px">${esc(msg || '')}</div><button class="btn primary" style="margin-top:14px">Sign in</button></form></div>`;
+  $('#mform').onsubmit = async e => { e.preventDefault(); const k = $('#mkey').value.trim().replace(/^(["'`“”‘’])([\s\S]*)\1$|^["'`“”‘’]([\s\S]*)["'`“”‘’]$/, '$2$3').trim(); $('#mstat').textContent = 'Checking…';
+    try { const j = await svc({ action: 'managerSignin', managerKey: k }); if (!j.ok || !j.token) { $('#mstat').textContent = j.message === 'Unknown action.' ? 'The service does not offer the Journal yet: it comes with the next ff_terminal release.' : (j.message || 'The key was not accepted.'); return; } managerToken = j.token; $('#mkey').value = ''; await load(); go(S.view); } catch (err) { $('#mstat').textContent = err.message; } };
+}
+(async () => {
+  $('#srcBadge').textContent = SOURCE === 'sample' ? 'Fake sample data' : 'Service';
+  $('#srcBadge').classList.toggle('fake', SOURCE === 'sample');
+  const v = location.hash.slice(1); if (v in VIEWS) S.view = v;
+  try { await load(); go(S.view); }
+  catch (e) { if (e.message === 'signin') signinView(); else $('#app').innerHTML = `<div class="card" style="margin-top:20px;color:#FCA5A5">The history could not be loaded: ${esc(e.message)}</div>`; }
+})();
+</script>
+</body>
+</html>

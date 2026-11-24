@@ -91,6 +91,7 @@ Add `?mock=1` to a terminal page's address: canned sub-tasks, no requests. With 
 - `author/` — the **job-authoring tool**: write each job's specifics in a WYSIWYG editor (**B**, *I*, four colours, bullet points and Clear; pasted text arrives plain) and its sub-tasks with IDs, previewed as the terminal shows them, and save them to the service. Test mode keeps the jobs in the browser (author key `123`): https://lossofgenerality.github.io/terminal/author/?mock=1
 - `live/` — the same terminal connected to the live Wolfram service (a worker passkey from the owner): https://lossofgenerality.github.io/terminal/live/
 - `demo/` — a terminal page built by the builder, in test mode (passkey `123`): https://lossofgenerality.github.io/terminal/demo/
+- `journal/` — the **Journal**, the manager's view: the floor live (every minute) and where the work slows down (heatmap, slowest steps, timeline, drill-down group / work-table / worker / job, groups). Runs now on a FAKE sample history; see `journal/SPEC.md` (and `.pdf`): https://lossofgenerality.github.io/terminal/journal/
 - `SECURITY.md` — the security scheme: HTTPS, keys sent once for session tokens, hashes at rest
 - `tests/` — end-to-end checks in a headless browser, with a stand-in passkey service (see `tests/README.md`)
 

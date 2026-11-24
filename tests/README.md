@@ -11,6 +11,8 @@ End-to-end checks of the builder and the terminal pages it makes, in a headless 
 
 `clicks.py` checks the receipts (Confirmed in bold orange beside each tick; with no connection, after 5 s the box goes back and *Press again!* shows in bold red; sign-out only once every tick is Confirmed) and the click reports against the stand-in service on the real wire (`payload_b64` in, `reply_b64` out): the station named and Install, the job chosen (with non-ASCII text intact), every tick and untick in order with time, station, job and passkey, Sign out Cancel; then, with the connection cut, the *Waiting to send* sign, sign-out held until the waiting clicks arrive in order, and the job recorded; and the same in test mode (`23/23 passed`).
 
+`journal.py` checks the Journal on the fake sample: every screen renders, at desktop and phone width; its figures (jobs, steps, slowest step, rework, the planted after-14:00 slow-down, live counts at 10:30) agree with an independent computation in Python; groups can be made, kept and reset; service mode asks for the manager key (`23/23 passed`).
+
 `author.py` checks the job-authoring tool in test mode: sign-in, the WYSIWYG editor (B, I, colours, bold with italic, Clear, bullet points, plain-text paste), the preview and its escaping of HTML, sub-task IDs and reordering, the checks before saving, saving and reopening, and that a job saved there appears on the demo terminal (`26/26 passed`).
 
 ## Running them
@@ -22,6 +24,7 @@ python3 -I tests/e2e.py
 python3 -I tests/messaging.py
 python3 -I tests/author.py
 python3 -I tests/clicks.py
+python3 -I tests/journal.py
 ```
 
 To use an installed Chrome instead, set `CHROME` to its path. The tests serve a copy of the repository at `http://localhost:8765` and print `45/45 passed` when all is well; `messaging.py` prints `25/25 passed`.
