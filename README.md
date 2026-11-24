@@ -18,9 +18,9 @@ At the top right of the page is the **Emergency** button, styled as a red emerge
 
 Under the sign-in box is the red line *Warning: Unauthorized Access Forbidden*.
 
-Choosing a job fetches its address. The job's **specifics** appear in a read-only, scrollable box; under it, the sub-tasks are laid out as a vertical list, each with an unticked checkbox on the left and its short text on the right. The worker ticks each one as it is done. Specifics are optional: without them the box is not shown.
+Choosing a job fetches its address. The job's **specifics** appear in a read-only, scrollable box; under it, the sub-tasks are laid out as a vertical list, each with an unticked checkbox on the left and, to its right, the sub-task's **ID number** followed by its short text. The worker ticks each one as it is done. Specifics are optional: without them the box is not shown.
 
-The reply may be a JSON object `{"specifics": "…", "subtasks": [ … ]}` (`details` or `description` also serve for the specifics), or plain text: the specifics, a line holding only `---`, then one sub-task per line. For the sub-tasks alone, the reply may also be a JSON list of strings, a JSON object holding such a list under `subtasks`, `items`, `tasks`, `list` or `data` (its entries may also be objects with `text`, `name` or `title`), or plain text with one sub-task per line (leading `-`, `*`, `1.` or `[ ]` are removed). The addresses must allow cross-origin requests (CORS) from wherever the page is served.
+The reply may be a JSON object `{"specifics": "…", "subtasks": [ … ]}` (`details` or `description` also serve for the specifics), or plain text: the specifics, a line holding only `---`, then one sub-task per line. A sub-task's ID comes with it: in JSON as an object `{"id": "MI-01", "text": "…"}` (`number` or `no` also serve), in plain text as `MI-01 | text`. A sub-task without an ID is numbered by its place in the list (1, 2, 3 …). For the sub-tasks alone, the reply may also be a JSON list of strings, a JSON object holding such a list under `subtasks`, `items`, `tasks`, `list` or `data` (its entries may also be objects with `text`, `name` or `title`), or plain text with one sub-task per line (leading `-`, `*`, `1.` or `[ ]` are removed). The addresses must allow cross-origin requests (CORS) from wherever the page is served.
 
 ## Using the builder
 
@@ -40,7 +40,7 @@ The page POSTs JSON to the service's address twice per session (`page` is the in
 | When | The page sends | The service replies |
 |---|---|---|
 | Sign-in | `{"action": "signin", "passkey": …, "app": …, "page": …}` | `{"ok": true, "done": ["task name", …]}`, or `{"ok": false}` |
-| Sign-out after a job | `{"action": "complete", "passkey": …, "app": …, "page": …, "task": "…", "subtasks": […]}` | `{"ok": true}` once recorded |
+| Sign-out after a job | `{"action": "complete", "passkey": …, "app": …, "page": …, "task": "…", "subtasks": [{"id", "text"}, …]}` | `{"ok": true}` once recorded |
 | A message | `{"action": "message", "conv": …, "mid": …, "text": …, "signedIn": …, "task": …, "app": …, "page": …}` (with `passkey` when signed in) | `{"ok": true}` |
 | Emergency | `{"action": "emergency", "conv": …, "eid": …, "at": …, "signedIn": …, "task": …, "app": …, "page": …}` | `{"ok": true}`; the service starts the emergency protocol |
 | Status, every 20 s while anything is open | `{"action": "messages", "conv": …, "app": …, "page": …}` | `{"ok": true, "messages": [{"mid", "status", "reply"}], "emergency": {"eid", "status"}}` |

@@ -18,7 +18,7 @@ python3 -I tests/e2e.py
 python3 -I tests/messaging.py
 ```
 
-To use an installed Chrome instead, set `CHROME` to its path. The tests serve a copy of the repository at `http://localhost:8765` and print `33/33 passed` when all is well; `messaging.py` prints `18/18 passed`.
+To use an installed Chrome instead, set `CHROME` to its path. The tests serve a copy of the repository at `http://localhost:8765` and print `38/38 passed` when all is well; `messaging.py` prints `19/19 passed`.
 
 ---
 © Computational Classnotes · CC BY-NC-SA 4.0

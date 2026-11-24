@@ -64,6 +64,8 @@ h1 { font-size:22px; margin:4px 0 0 }
 #sure .row { justify-content:center }
 #specifics { width:100%; font:inherit; font-size:14px; line-height:1.5; padding:9px 11px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--ink); resize:vertical; max-height:50vh; overflow:auto; margin:0 0 12px; white-space:pre-wrap }
 #specifics:focus { outline:2px solid var(--accent); outline-offset:1px }
+.sid { font:600 12.5px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:var(--accent); background:var(--accent-soft); padding:1px 6px; border-radius:5px; margin-right:4px; white-space:nowrap }
+#subtasks li input:checked + span .sid { text-decoration:none; opacity:.7 }
 [hidden] { display:none !important }
 footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px }
 </style>
@@ -346,18 +348,24 @@ function parseJob(raw) {
   }
   return { specifics: specifics.trim(), list: parseSubtasks(raw) };
 }
+/* sub-tasks: each has an ID number shown before its text
+     JSON: strings, or objects {"id": "T-104", "text": "…"} (also number/no, and name/title for the text)
+     plain text: "T-104 | text" per line, or the text alone
+     a sub-task without an ID is numbered by its place in the list: 1, 2, 3 … */
 function parseSubtasks(raw) {
+  const one = x => typeof x === 'string' ? { id: '', text: x } : (x && typeof x === 'object' ? { id: String(x.id ?? x.number ?? x.no ?? '').trim(), text: String(x.text ?? x.name ?? x.title ?? x.task ?? '') } : null);
   const fromJSON = v => {
-    if (Array.isArray(v)) return v.map(x => typeof x === 'string' ? x : (x && (x.text ?? x.name ?? x.title ?? x.task))).filter(x => x != null).map(String);
+    if (Array.isArray(v)) return v.map(one).filter(Boolean);
     if (v && typeof v === 'object') for (const k of ['subtasks', 'sub_tasks', 'items', 'tasks', 'list', 'data']) if (k in v) return fromJSON(v[k]);
     return null;
   };
   let list = null; try { list = fromJSON(JSON.parse(raw)); } catch (e) {}
-  if (!list) list = raw.split(/\r?\n/).map(s => s.replace(/^\s*(?:[-*•]|\d+[.)]|\[[ xX]?\])\s*/, ''));
-  return list.map(s => s.trim()).filter(Boolean).slice(0, 1000);
+  if (!list) list = raw.split(/\r?\n/).map(l => { l = l.replace(/^\s*(?:[-*•]|\d+[.)]|\[[ xX]?\])\s*/, ''); const b = l.indexOf('|'); return b < 0 ? { id: '', text: l } : { id: l.slice(0, b).trim(), text: l.slice(b + 1) }; });
+  list = list.map(x => ({ id: x.id, text: x.text.trim() })).filter(x => x.text).slice(0, 1000);
+  return list.map((x, k) => ({ id: x.id || String(k + 1), text: x.text }));
 }
 async function fetchJob(t) {
-  if (MOCK) { await new Promise(r => setTimeout(r, 150)); return { specifics: `${t.name}: the specifics of this job, as the manager has written them.\n\nTest mode shows canned text here. In real use this box holds the job's full instructions: what to check, in what order, safety notes, and whom to call. It scrolls when the text is long, and the worker cannot change it.\n\n1. Read these specifics.\n2. Carry out each sub-task below.\n3. Tick each one as it is done.`, list: [1, 2, 3].map(i => `${t.name}: sub-task ${i}`) }; }
+  if (MOCK) { await new Promise(r => setTimeout(r, 150)); return { specifics: `${t.name}: the specifics of this job, as the manager has written them.\n\nTest mode shows canned text here. In real use this box holds the job's full instructions: what to check, in what order, safety notes, and whom to call. It scrolls when the text is long, and the worker cannot change it.\n\n1. Read these specifics.\n2. Carry out each sub-task below.\n3. Tick each one as it is done.`, list: [1, 2, 3].map(i => ({ id: 'T-' + (100 + i), text: `${t.name}: sub-task ${i}` })) }; }
   const headers = CFG.sendPasskey ? { Authorization: 'Bearer ' + passkey } : {};
   const r = await fetch(t.url, { headers, cache: 'no-store' });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -398,7 +406,7 @@ function showTask() {
   const ul = $('#subtasks');
   if (ul.dataset.task !== String(cur.i)) {       // rebuild only when another task is shown, so ticking keeps focus
     ul.dataset.task = String(cur.i);
-    ul.innerHTML = cur.list.map((x, k) => `<li><label><input type="checkbox" data-k="${k}"><span>${esc(x)}</span></label></li>`).join('');
+    ul.innerHTML = cur.list.map((x, k) => `<li><label><input type="checkbox" data-k="${k}"><span><b class="sid">${esc(x.id)}</b> ${esc(x.text)}</span></label></li>`).join('');
   }
 }
 $('#subtasks').addEventListener('change', e => { const k = e.target.dataset.k; if (k == null || !cur || !cur.list) return; cur.done[Number(k)] = e.target.checked; refresh(); });
@@ -468,7 +476,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 
 /* ---------- build stamp ---------- */
 (() => {
-  const APP_BUILD = '2026.11.24-0048';   // page design build, stamped at each commit
+  const APP_BUILD = '2026.11.24-0051';   // page design build, stamped at each commit
   const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   const slot = document.getElementById('updatedStamp');
   if (slot) slot.textContent = 'Page design build ' + APP_BUILD + (CFG.builder_build ? ' · builder build ' + CFG.builder_build : '') + ' · made ' + show(CFG.made);
