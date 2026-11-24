@@ -8,8 +8,8 @@ Builder: https://lossofgenerality.github.io/terminal/ (once GitHub Pages is swit
 
 From the top:
 
-1. **Job** — a pulldown of the jobs not yet done. It appears only once the passkey is accepted, and is fixed once the first sub-task is ticked.
-2. **The name of the app.**
+1. **The app's name**, with **Install app** under it and the **Emergency** button at the top right.
+2. **Job**, directly under the name: a pulldown of the jobs not yet done. It appears only once the passkey is accepted, and is fixed once the first sub-task is ticked.
 3. **Sign in** — a box reading *Enter passkey*; Enter or the button signs in.
 4. **Sign out** — disabled until every sub-task of the chosen job is ticked. Pressing it opens an **ARE YOU SURE?** window; *Yes, sign out* then records the job as done; if it cannot be recorded, the person stays signed in and may try again. When every job is done, the pulldown says so and sign-out is open.
 5. **Message** — a box for messages to the manager, available before signing in as well, so that a worker who cannot sign in can still reach the manager. Messages are two-way, but a reply is optional. Each message carries a small dot: red, not sent (with *Send again*); yellow, delivered with no response yet; green, opened by the manager; blue, handled. A written reply appears under the message. Each dot also has a text label.

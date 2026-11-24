@@ -26,8 +26,6 @@ select:disabled { opacity:.55 }
 button.b { font:inherit; font-size:14px; padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; white-space:nowrap }
 button.b.p { background:var(--accent); border-color:var(--accent); color:#fff }
 button.b:disabled { opacity:.5; cursor:not-allowed }
-#taskBar { position:sticky; top:0; z-index:5; background:var(--panel); border-bottom:1px solid var(--line); padding:10px 20px }
-#taskBar .in { max-width:860px; margin:0 auto }
 h1 { font-size:22px; margin:4px 0 0 }
 .st { font-size:13px; min-height:1.2em; margin-top:6px } .st.ok { color:var(--ok) } .st.bad { color:var(--bad) } .st.warn { color:var(--warn) }
 .mute { color:var(--mute); font-size:12.5px }
@@ -76,13 +74,6 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
 </style>
 </head>
 <body>
-<!-- the pulldown of tasks, at the very top; it appears only once the passkey is accepted -->
-<div id="taskBar" hidden>
-  <div class="in">
-    <label class="f" for="task">Job</label>
-    <div class="row"><select id="task"><option value="">Choose a job…</option></select><span class="progress" id="progress"></span></div>
-  </div>
-</div>
 <main>
   <header class="row" style="justify-content:space-between; align-items:center">
     <div><h1 id="appName">Packing Station</h1>
@@ -90,6 +81,12 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
       <div id="installMsg" role="status" hidden></div></div>
     <button class="estop" id="emergency" aria-label="Emergency: press to start the emergency protocol"><span>Emergency</span></button>
   </header>
+
+  <!-- the pulldown of jobs, directly under the title; it appears only once the passkey is accepted -->
+  <section class="panel" id="taskBar" hidden>
+    <label class="f" for="task">Job</label>
+    <div class="row"><select id="task"><option value="">Choose a job…</option></select><span class="progress" id="progress"></span></div>
+  </section>
 
   <section class="panel" id="emBox" hidden role="alert">
     <h2>Emergency</h2>
@@ -538,7 +535,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 
 /* ---------- build stamp ---------- */
 (() => {
-  const APP_BUILD = '2026.11.24-0055';   // page design build, stamped at each commit
+  const APP_BUILD = '2026.11.24-0100';   // page design build, stamped at each commit
   const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   const slot = document.getElementById('updatedStamp');
   if (slot) slot.textContent = 'Page design build ' + APP_BUILD + (CFG.builder_build ? ' · builder build ' + CFG.builder_build : '') + ' · made ' + show(CFG.made);
