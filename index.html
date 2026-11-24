@@ -30,7 +30,7 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
 <body>
 <header>
   <h1>CCN Terminal — Builder</h1>
-  <div class="sub">Describe an app here and the builder writes it as one standalone page: a pulldown of tasks, a passkey sign-in, one task per session, with a sign-out that waits until every sub-task of it is ticked, and a message box. Each task's sub-tasks are fetched from its own address when the task is chosen.</div>
+  <div class="sub">Describe an app here and the builder writes it as one standalone page: a pulldown of jobs, a passkey sign-in, one job per session, with a sign-out that waits until every sub-task of it is ticked, and a message box. Each job's sub-tasks are fetched from its own address when the job is chosen.</div>
 </header>
 <main>
   <section class="panel">
@@ -44,12 +44,12 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
   </section>
 
   <section class="panel">
-    <h2>2 · Tasks</h2>
-    <div class="mute">One task per line. Give its address after a bar (<code>Task name | https://…</code>), or leave the address out to make it from the pattern below. The address must return the sub-tasks: a JSON list of strings, a JSON object holding such a list under <code>subtasks</code> or <code>items</code>, or plain text with one sub-task per line.</div>
-    <label class="f" for="tasks">Tasks</label><textarea id="tasks" spellcheck="false" placeholder="Morning inspection | https://example.org/checks/morning.json&#10;Evening inspection"></textarea>
-    <label class="f" for="pattern">Address pattern for tasks without their own address: <code>{slug}</code> the task name in lower case with dashes, <code>{task}</code> the name as written, <code>{n}</code> its line number</label>
+    <h2>2 · Jobs</h2>
+    <div class="mute">One job per line. Give its address after a bar (<code>Job name | https://…</code>), or leave the address out to make it from the pattern below. The address must return the sub-tasks: a JSON list of strings, a JSON object holding such a list under <code>subtasks</code> or <code>items</code>, or plain text with one sub-task per line.</div>
+    <label class="f" for="tasks">Jobs</label><textarea id="tasks" spellcheck="false" placeholder="Morning inspection | https://example.org/checks/morning.json&#10;Evening inspection"></textarea>
+    <label class="f" for="pattern">Address pattern for jobs without their own address: <code>{slug}</code> the job name in lower case with dashes, <code>{task}</code> the name as written, <code>{n}</code> its line number</label>
     <input id="pattern" type="url" spellcheck="false" placeholder="https://example.org/checks/{slug}.json">
-    <table id="taskTable" hidden><thead><tr><th>#</th><th>Task</th><th>Address of its sub-tasks</th></tr></thead><tbody></tbody></table>
+    <table id="taskTable" hidden><thead><tr><th>#</th><th>Job</th><th>Address of its sub-tasks</th></tr></thead><tbody></tbody></table>
   </section>
 
   <section class="panel">
@@ -64,7 +64,7 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
     </div>
     <div class="mute" id="keptHash" hidden>The loaded specification already holds a passkey hash; leave both boxes empty to keep it.</div>
     <div id="remoteFields" hidden><label class="f" for="authUrl">Address of the passkey service</label><input id="authUrl" type="url" spellcheck="false" placeholder="https://www.wolframcloud.com/obj/…/CheckPasskey"></div>
-    <div class="mute" style="margin-top:8px">One task per session: after signing in, the person chooses one task, and may sign out only once every sub-task of it is ticked. Signing out records the task as done, so the next sign-in offers one task fewer. With the service, the service keeps that record (see the README); with the in-page check, this device does.</div>
+    <div class="mute" style="margin-top:8px">One job per session: after signing in, the person chooses one job, and may sign out only once every sub-task of it is ticked. Signing out records the job as done, so the next sign-in offers one job fewer. With the service, the service keeps that record (see the README); with the in-page check, this device does.</div>
     <div class="choice" style="margin-top:8px"><label><input type="checkbox" id="sendPasskey"><span>Send the passkey with each sub-task request, as <code>Authorization: Bearer …</code> <span class="mute">(only for addresses that require it; they must then allow that header in CORS)</span></span></label></div>
   </section>
 
@@ -84,7 +84,7 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
 
 <script>
 'use strict';
-const APP_BUILD = '2026.11.24-0037';   // build number, stamped at each commit
+const APP_BUILD = '2026.11.24-0043';   // build number, stamped at each commit
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 const st = (el, cls, text) => { el.className = 'st ' + (cls || ''); el.textContent = text || ''; };
@@ -105,7 +105,7 @@ function readTasks() {
     const bar = line.indexOf('|');
     const name = (bar < 0 ? line : line.slice(0, bar)).trim(), own = bar < 0 ? '' : line.slice(bar + 1).trim();
     const url = own || (pattern ? pattern.split('{slug}').join(encodeURIComponent(slug(name) || 'task-' + (i + 1))).split('{task}').join(encodeURIComponent(name)).split('{n}').join(String(i + 1)) : '');
-    return { name, url, problem: !name ? 'no task name' : addressProblem(url) || (!own && !pattern ? 'no address and no pattern' : '') };
+    return { name, url, problem: !name ? 'no job name' : addressProblem(url) || (!own && !pattern ? 'no address and no pattern' : '') };
   });
 }
 function showTasks() {
@@ -153,8 +153,8 @@ async function makeSpec() {
   const errs = [], appName = $('#appName').value.trim(), tasks = showTasks();
   if (!appName) errs.push('Give the app a name.');
   const folder = $('#folder').value.trim(); if (folder && !/^[a-z0-9][a-z0-9-]{1,39}$/.test(folder)) errs.push('The folder must be 2–40 lower-case letters, digits or dashes.');
-  if (!tasks.length) errs.push('List at least one task.');
-  tasks.forEach((t, i) => t.problem && errs.push(`Task ${i + 1}${t.name ? ' (' + t.name + ')' : ''}: ${t.problem}.`));
+  if (!tasks.length) errs.push('List at least one job.');
+  tasks.forEach((t, i) => t.problem && errs.push(`Job ${i + 1}${t.name ? ' (' + t.name + ')' : ''}: ${t.problem}.`));
   let auth = null;
   if (authMode() === 'hash') {
     const p1 = $('#pk1').value, p2 = $('#pk2').value;
@@ -211,7 +211,7 @@ $('#build').onclick = async () => {
     built.url = URL.createObjectURL(new Blob([built.preview], { type: 'text/html' }));
     $('#frame').src = built.url; $('#result').hidden = false;
     keptAuth = spec.auth.mode === 'hash' ? spec.auth : keptAuth; $('#pk1').value = $('#pk2').value = ''; showAuth();
-    st($('#bstat'), 'ok', `Built: ${spec.tasks.length} task${spec.tasks.length === 1 ? '' : 's'}, ${(built.page.length / 1024).toFixed(1)} KB.`);
+    st($('#bstat'), 'ok', `Built: ${spec.tasks.length} job${spec.tasks.length === 1 ? '' : 's'}, ${(built.page.length / 1024).toFixed(1)} KB.`);
     document.body.dataset.built = 'yes';
   } catch (e) { st($('#bstat'), 'bad', e.message || String(e)); }
 };
@@ -263,10 +263,10 @@ self.addEventListener('fetch', e => {
 });
 `; }
 function notesFor(c) {
-  const L = [`# ${c.appName} — Production notes`, '', `*Made with the CCN Terminal builder · ${c.made.slice(0, 16).replace('T', ' ')} UTC · builder build ${APP_BUILD}*`, '', '## Tasks', '', '| # | Task | Address of its sub-tasks |', '|---|---|---|'];
+  const L = [`# ${c.appName} — Production notes`, '', `*Made with the CCN Terminal builder · ${c.made.slice(0, 16).replace('T', ' ')} UTC · builder build ${APP_BUILD}*`, '', '## Jobs', '', '| # | Job | Address of its sub-tasks |', '|---|---|---|'];
   c.tasks.forEach((t, i) => L.push(`| ${i + 1} | ${t.name.replace(/\|/g, '\\|')} | ${t.url} |`));
   L.push('', '## Sign-in and sign-out', '', c.auth.mode === 'hash' ? '- The passkey is checked in the page against a salted SHA-256 hash; the passkey itself is not in the page.' : `- The passkey is checked by the service at ${c.auth.url}.`,
-    '- One task per session: sign-out is allowed once every sub-task of the chosen task is ticked, and records that task as done.', `- The passkey is ${c.sendPasskey ? '' : 'not '}sent with sub-task requests.`, '- Messages to the manager and the Emergency button go to the service (with the in-page check they cannot be sent). Both work without signing in.', '', '---', '© Computational Classnotes · CC BY-NC-SA 4.0', '');
+    '- One job per session: sign-out is allowed once every sub-task of the chosen job is ticked, and records that job as done.', `- The passkey is ${c.sendPasskey ? '' : 'not '}sent with sub-task requests.`, '- Messages to the manager and the Emergency button go to the service (with the in-page check they cannot be sent). Both work without signing in.', '', '---', '© Computational Classnotes · CC BY-NC-SA 4.0', '');
   return L.join('\n');
 }
 function readmeFor(c) { return `# ${c.appName}\n\nA CCN Terminal page. Open \`index.html\` (best from an https:// site such as GitHub Pages, so that Install works). Add \`?mock=1\` to the address for canned sub-tasks and no requests.\n\n- \`index.html\` — the page (everything built in; sub-tasks are fetched from each task's address)\n- \`notes.md\` — production notes\n- \`terminal-data.json\` — the page's settings, for reuse\n- \`manifest.webmanifest\`, \`sw.js\`, \`icons/\` — install files\n\n© Computational Classnotes · CC BY-NC-SA 4.0\n`; }
@@ -294,7 +294,7 @@ function makeZip(files) {      // files: [{name, data: Uint8Array}], stored with
 
 /* freshness: when this copy was last updated, and a reload offer when a newer copy is online */
 (() => {
-  const UPDATED = '2026-11-24T00:37:00Z';
+  const UPDATED = '2026-11-24T00:43:00Z';
   const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   const PUBLISHED = /^https?:/.test(location.protocol) && !isNaN(Date.parse(document.lastModified)) ? document.lastModified : UPDATED;
   const slot = document.getElementById('updatedStamp'); if (slot) slot.textContent = 'Build ' + APP_BUILD + ' · Updated ' + show(PUBLISHED);

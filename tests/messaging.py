@@ -48,7 +48,7 @@ async def main():
         # signed in: the task travels with the message
         await pg.fill('#passkey', 'test-passkey'); await pg.press('#passkey', 'Enter'); await pg.wait_for_selector('#taskBar:not([hidden])')
         await pg.select_option('#task', '0'); await pg.fill('#message', 'Come see me ASAP'); await pg.click('#send'); await pg.wait_for_timeout(700)
-        ok('signed-in message carries the task', 'task: Morning inspection' in await pg.inner_text('#mockRows'))
+        ok('signed-in message carries the task', 'job: Morning inspection' in await pg.inner_text('#mockRows'))
         bx = await pg.query_selector_all('#subtasks input')
         for x in bx: await x.check()
         await pg.click('#logout'); await pg.wait_for_selector('#sure:not([hidden])')

@@ -70,8 +70,8 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
 <!-- the pulldown of tasks, at the very top; it appears only once the passkey is accepted -->
 <div id="taskBar" hidden>
   <div class="in">
-    <label class="f" for="task">Task</label>
-    <div class="row"><select id="task"><option value="">Choose a task…</option></select><span class="progress" id="progress"></span></div>
+    <label class="f" for="task">Job</label>
+    <div class="row"><select id="task"><option value="">Choose a job…</option></select><span class="progress" id="progress"></span></div>
   </div>
 </div>
 <main>
@@ -248,12 +248,12 @@ function renderMock() {
   if (!MOCK) return;
   const e = mockSvc.em;
   const emRow = e ? `<tr style="background:rgba(220,38,38,.1)"><td><i class="dot ${e.status}" title="${STATUS[e.status]}"></i></td>
-    <td><b style="color:#dc2626">EMERGENCY</b><div class="mute">${hhmm(e.at)} · ${e.signedIn ? 'signed in' + (e.task ? ' · task: ' + esc(e.task) : '') : '<b style="color:var(--bad)">not signed in</b>'}</div></td>
+    <td><b style="color:#dc2626">EMERGENCY</b><div class="mute">${hhmm(e.at)} · ${e.signedIn ? 'signed in' + (e.task ? ' · job: ' + esc(e.task) : '') : '<b style="color:var(--bad)">not signed in</b>'}</div></td>
     <td style="white-space:nowrap"><button class="b" data-act="emopen" ${e.status !== 'delivered' ? 'disabled' : ''}>Open</button>
       <button class="b" data-act="emhandle" ${e.status === 'handled' ? 'disabled' : ''}>Mark handled</button></td></tr>` : '';
   $('#mockRows').innerHTML = emRow + (!mockSvc.box.length ? (e ? '' : '<tr><td class="mute">No messages yet.</td></tr>') : mockSvc.box.slice().reverse().map(b => `<tr>
     <td><i class="dot ${b.status}" title="${STATUS[b.status]}"></i></td>
-    <td>${esc(b.text)}<div class="mute">${hhmm(b.at)} · ${b.signedIn ? 'signed in' + (b.task ? ' · task: ' + esc(b.task) : '') : '<b style="color:var(--bad)">not signed in</b>'}${b.reply ? ' · replied: “' + esc(b.reply) + '”' : ''}</div></td>
+    <td>${esc(b.text)}<div class="mute">${hhmm(b.at)} · ${b.signedIn ? 'signed in' + (b.task ? ' · job: ' + esc(b.task) : '') : '<b style="color:var(--bad)">not signed in</b>'}${b.reply ? ' · replied: “' + esc(b.reply) + '”' : ''}</div></td>
     <td style="white-space:nowrap"><button class="b" data-act="open" data-mid="${b.mid}" ${b.status !== 'delivered' ? 'disabled' : ''}>Open</button>
       <button class="b" data-act="reply" data-mid="${b.mid}" ${b.status === 'handled' ? 'disabled' : ''}>Reply…</button>
       <button class="b" data-act="handle" data-mid="${b.mid}" ${b.status === 'handled' ? 'disabled' : ''}>Mark handled</button></td></tr>`).join(''));
@@ -367,9 +367,9 @@ function refresh() {
   const n = cur && cur.list ? cur.done.filter(Boolean).length : 0, all = cur && cur.list ? cur.list.length : 0, complete = !!(cur && cur.list && n === all);
   $('#task').disabled = !!(cur && n > 0) || !left;      // the task is fixed once its first sub-task is ticked
   $('#logout').disabled = !(complete || !left);
-  $('#logoutWhy').textContent = !left ? 'Every task is complete.' : !cur ? 'Choose a task first.' : cur.error ? 'Sign-out waits until the sub-tasks of this task can be loaded.' :
-    !cur.list ? 'Loading sub-tasks…' : complete ? 'Every sub-task is complete; signing out records this task as done.' : `Complete every sub-task of this task to sign out (${n} of ${all}).`;
-  $('#progress').innerHTML = all ? `<b>${n}</b> of ${all} complete` : left ? `${left} task${left === 1 ? '' : 's'} left` : '';
+  $('#logoutWhy').textContent = !left ? 'Every job is complete.' : !cur ? 'Choose a job first.' : cur.error ? 'Sign-out waits until the sub-tasks of this job can be loaded.' :
+    !cur.list ? 'Loading sub-tasks…' : complete ? 'Every sub-task is complete; signing out records this job as done.' : `Complete every sub-task of this job to sign out (${n} of ${all}).`;
+  $('#progress').innerHTML = all ? `<b>${n}</b> of ${all} complete` : left ? `${left} job${left === 1 ? '' : 's'} left` : '';
   showTask();
 }
 function showTask() {
@@ -399,7 +399,7 @@ async function signIn() {
     if (!r.ok) { st($('#lstat'), 'bad', 'The passkey was not accepted.'); return; }
     passkey = p; $('#passkey').value = ''; cur = null;
     const done = new Set(r.done), open = tasks.map((t, i) => [t, i]).filter(([t]) => !done.has(t.name));
-    $('#task').innerHTML = `<option value="">${open.length ? 'Choose a task…' : 'Every task is complete'}</option>` + open.map(([t, i]) => `<option value="${i}">${esc(t.name)}</option>`).join('');
+    $('#task').innerHTML = `<option value="">${open.length ? 'Choose a job…' : 'Every job is complete'}</option>` + open.map(([t, i]) => `<option value="${i}">${esc(t.name)}</option>`).join('');
     $('#taskBar').hidden = false; $('#logoutPanel').hidden = false; $('#loginPanel').hidden = true;
     st($('#lstat'), 'ok', ''); refresh();
   } catch (e) { st($('#lstat'), 'bad', e.message || String(e)); }
@@ -421,13 +421,13 @@ async function signOut() {
   if ($('#logout').disabled) return;
   const finished = cur && cur.list && cur.done.every(Boolean) ? cur : null;
   if (finished) {
-    $('#logout').disabled = true; $('#logoutWhy').textContent = 'Recording the task as done…';
+    $('#logout').disabled = true; $('#logoutWhy').textContent = 'Recording the job as done…';
     try { await recordComplete(tasks[finished.i], finished.list); }
-    catch (e) { $('#logout').disabled = false; $('#logoutWhy').textContent = `The task could not be recorded as done (${e.message || e}); you remain signed in. Press Sign out to try again.`; return; }
+    catch (e) { $('#logout').disabled = false; $('#logoutWhy').textContent = `The job could not be recorded as done (${e.message || e}); you remain signed in. Press Sign out to try again.`; return; }
   }
   passkey = ''; cur = null;
   $('#taskBar').hidden = $('#logoutPanel').hidden = $('#taskPanel').hidden = true; $('#loginPanel').hidden = false;
-  $('#task').innerHTML = '<option value="">Choose a task…</option>'; $('#task').disabled = false; $('#subtasks').innerHTML = ''; $('#subtasks').dataset.task = '';
+  $('#task').innerHTML = '<option value="">Choose a job…</option>'; $('#task').disabled = false; $('#subtasks').innerHTML = ''; $('#subtasks').dataset.task = '';
   st($('#lstat'), 'ok', finished ? `Signed out. "${tasks[finished.i].name}" is recorded as done.` : 'Signed out.'); $('#passkey').focus();
 };
 
@@ -452,7 +452,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 
 /* ---------- build stamp ---------- */
 (() => {
-  const APP_BUILD = '2026.11.24-0040';   // page design build, stamped at each commit
+  const APP_BUILD = '2026.11.24-0043';   // page design build, stamped at each commit
   const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   const slot = document.getElementById('updatedStamp');
   if (slot) slot.textContent = 'Page design build ' + APP_BUILD + (CFG.builder_build ? ' · builder build ' + CFG.builder_build : '') + ' · made ' + show(CFG.made);
