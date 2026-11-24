@@ -1,0 +1,16 @@
+{
+  "data": {
+    "id": "packing-station-live",
+    "made": "2026-11-24T03:57:46.000Z",
+    "appName": "Packing Station",
+    "short": "Packing Station",
+    "tasks": [],
+    "auth": {
+      "mode": "remote",
+      "url": "https://www.wolframcloud.com/obj/ccn2/TerminalKernel"
+    },
+    "sendPasskey": false,
+    "builder_build": "2026.11.24-0415",
+    "logo": "icons/icon-192.png"
+  }
+}

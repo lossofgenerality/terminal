@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="theme-color" content="#0f8f8c" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1b1f20" media="(prefers-color-scheme: dark)">
+<title>Packing Station</title>
+<style>
+:root { --bg:#f6f7f7; --panel:#fff; --ink:#17191a; --mute:#5d6366; --line:#dde1e2; --accent:#0f8f8c; --accent-soft:#e3f3f2; --warn:#b45309; --bad:#b91c1c; --ok:#15803d }
+@media (prefers-color-scheme: dark) { :root { --bg:#121516; --panel:#1b1f20; --ink:#e8ecec; --mute:#9aa3a5; --line:#2c3335; --accent:#3cc2bd; --accent-soft:#163331; --warn:#f59e0b; --bad:#f87171; --ok:#4ade80 } }
+* { box-sizing:border-box }
+body { margin:0; font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink) }
+main { max-width:860px; margin:0 auto; padding:14px 20px 30px; display:grid; gap:14px }
+.panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px }
+.panel h2 { font-size:15px; margin:0 0 10px }
+label.f { display:block; font-size:12.5px; color:var(--mute); margin:0 0 3px }
+input[type=text], input[type=password], select { width:100%; font:inherit; font-size:14px; padding:8px 10px; border:1px solid var(--line); border-radius:7px; background:var(--bg); color:var(--ink) }
+select:disabled { opacity:.55 }
+.row { display:flex; gap:8px; align-items:center }
+.row > input, .row > select { flex:1 }
+button.b { font:inherit; font-size:14px; padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:var(--panel); color:var(--ink); cursor:pointer; white-space:nowrap }
+button.b.p { background:var(--accent); border-color:var(--accent); color:#fff }
+button.b:disabled { opacity:.5; cursor:not-allowed }
+h1 { font-size:22px; margin:4px 0 0 }
+.st { font-size:13px; min-height:1.2em; margin-top:6px } .st.ok { color:var(--ok) } .st.bad { color:var(--bad) } .st.warn { color:var(--warn) }
+.mute { color:var(--mute); font-size:12.5px }
+#subtasks { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px }
+#subtasks li label { display:flex; gap:10px; align-items:flex-start; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:var(--bg); cursor:pointer }
+#subtasks li input { margin-top:4px; width:17px; height:17px; accent-color:var(--accent) }
+#subtasks li input:checked + span { color:var(--mute); text-decoration:line-through }
+.progress { font-size:13px; color:var(--mute) } .progress b { color:var(--ink) }
+#msgs { list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:6px }
+#msgs li { border:1px solid var(--line); border-radius:8px; padding:7px 10px; background:var(--bg) }
+#msgs .top { display:flex; gap:8px; align-items:baseline }
+.dot { flex:none; width:9px; height:9px; border-radius:50%; display:inline-block; transform:translateY(-1px) }
+.dot.sending { background:#9ca3af } .dot.failed { background:#dc2626 } .dot.delivered { background:#eab308 } .dot.opened { background:#16a34a } .dot.handled { background:#2563eb }
+#msgs .txt { flex:1; white-space:pre-wrap; word-break:break-word } #msgs .when { color:var(--mute); font-size:12px; white-space:nowrap }
+#msgs .again { font-size:12.5px; margin-left:17px; color:var(--bad); background:none; border:0; padding:2px 0; cursor:pointer; text-decoration:underline; font:inherit }
+#msgs .reply { margin:6px 0 0 17px; padding:6px 9px; border-left:3px solid var(--accent); background:var(--accent-soft); border-radius:4px; font-size:14px }
+#msgs .reply b { font-size:12px; color:var(--mute); display:block; font-weight:600 }
+.legend { display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:var(--mute); margin-top:8px } .legend span { display:inline-flex; gap:5px; align-items:center }
+#mock { border:2px dashed var(--warn) } #mock h2 { color:var(--warn) }
+#mock table { width:100%; border-collapse:collapse; font-size:13.5px } #mock td { padding:5px 6px; border-bottom:1px solid var(--line); vertical-align:top }
+#mock button.b { font-size:12.5px; padding:4px 9px }
+/* the emergency button: a red stop, as on factory machines */
+.estop { position:relative; z-index:60; flex:none; width:104px; height:104px; border-radius:50%; padding:0; background:none; border:0; cursor:pointer }
+.estop span { display:flex; align-items:center; justify-content:center; width:100%; height:100%; border-radius:50%; background:radial-gradient(circle at 38% 32%, #f87171, #dc2626 45%, #991b1b); color:#fff; font:800 15px/1 system-ui,sans-serif; letter-spacing:.04em; text-shadow:0 1px 2px rgba(0,0,0,.5); box-shadow:inset 0 -6px 10px rgba(0,0,0,.35), 0 4px 0 #7f1d1d }
+.estop:active span { transform:translateY(3px); box-shadow:inset 0 -3px 6px rgba(0,0,0,.35), 0 1px 0 #7f1d1d }
+/* z-index 60 keeps the Emergency button above the ARE YOU SURE? window (50), so it can always be pressed */
+.estop:focus-visible { outline:3px solid var(--accent); outline-offset:3px }
+#outbox { margin-top:8px; font-size:12.5px; color:var(--warn); display:flex; align-items:center; gap:6px; flex-wrap:wrap }
+#emBox { border:2px solid #dc2626; background:rgba(220,38,38,.07) } #emBox h2 { color:#dc2626 }
+#emBox .row { flex-wrap:wrap }
+.warnline { color:var(--bad); font-size:13px; font-weight:600; margin-top:6px }
+#nameWin { position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; padding:20px }
+#nameWin .box { background:var(--panel); border-radius:12px; padding:20px 22px; max-width:400px; width:100%; box-shadow:0 10px 40px rgba(0,0,0,.3) }
+#nameWin h2 { margin:0 0 6px; font-size:18px } #nameWin p { margin:0 0 12px; color:var(--mute); font-size:13.5px }
+#nameWin .row { justify-content:flex-end; margin-top:12px }
+#sure { position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; padding:20px }
+#sure .box { background:var(--panel); border-radius:12px; padding:20px 22px; max-width:380px; width:100%; box-shadow:0 10px 40px rgba(0,0,0,.3); text-align:center }
+#sure h2 { margin:0 0 8px; font-size:20px; letter-spacing:.02em } #sure p { margin:0 0 16px; color:var(--mute); font-size:14px }
+#sure .row { justify-content:center }
+#specifics { font-size:14px; line-height:1.55; padding:9px 11px; border:1px solid var(--line); border-radius:8px; background:var(--panel); max-height:45vh; overflow:auto; margin:0 0 12px }
+#specifics:focus { outline:2px solid var(--accent); outline-offset:1px }
+.spec p { margin:0 0 .6em } .spec p:last-child { margin-bottom:0 } .spec ul { margin:0 0 .6em; padding-left:1.3em }
+.c-red { color:#dc2626 } .c-amber { color:#d97706 } .c-green { color:#16a34a } .c-blue { color:#2563eb }
+#logo { max-height:64px; max-width:180px; object-fit:contain; display:block; margin-bottom:6px }
+.sid { display:inline-block; font:600 12.5px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:var(--accent); background:var(--accent-soft); padding:1px 6px; border-radius:5px; margin-right:4px; white-space:nowrap }
+#subtasks li input:checked + span .sid { text-decoration:none; opacity:.7 }
+#installMsg { margin-top:8px; max-width:520px; font-size:12.5px; background:var(--accent-soft); border:1px solid var(--accent); border-radius:8px; padding:6px 10px }
+[hidden] { display:none !important }
+footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px }
+</style>
+</head>
+<body>
+<main>
+  <header class="row" style="justify-content:space-between; align-items:center">
+    <div><img id="logo" alt="" hidden><h1 id="appName">Packing Station</h1>
+      <button class="b p" id="installBtn" style="margin-top:8px; font-size:13px; padding:6px 12px" title="Install this page as an app on this computer, tablet or phone">Install app</button>
+      <div id="installMsg" role="status" hidden></div>
+      <div id="outbox" role="status" hidden></div></div>
+    <button class="estop" id="emergency" aria-label="Emergency: press to start the emergency protocol"><span>Emergency</span></button>
+  </header>
+
+  <!-- the pulldown of jobs, directly under the title; it appears only once the passkey is accepted -->
+  <section class="panel" id="taskBar" hidden>
+    <label class="f" for="task">Job</label>
+    <div class="row"><select id="task"><option value="">Choose a job…</option></select><span class="progress" id="progress"></span></div>
+  </section>
+
+  <section class="panel" id="emBox" hidden role="alert">
+    <h2>Emergency</h2>
+    <div class="row"><i class="dot" id="emDot"></i><span id="emText"></span></div>
+    <div class="mute" id="emHelp" style="margin-top:6px"></div>
+  </section>
+
+  <section class="panel" id="loginPanel">
+    <h2>Sign in</h2>
+    <div class="row"><input id="passkey" type="password" placeholder="Enter passkey" autocomplete="current-password" aria-label="Passkey"><button class="b p" id="login">Sign in</button></div>
+    <div class="warnline" role="note">Warning: Unauthorized Access Forbidden</div>
+    <div class="st" id="lstat"></div>
+  </section>
+
+  <section class="panel" id="logoutPanel" hidden>
+    <h2>Sign out</h2>
+    <div class="row"><button class="b" id="logout" disabled>Sign out</button><span class="mute" id="logoutWhy"></span></div>
+  </section>
+
+  <section class="panel" id="taskPanel" hidden>
+    <h2 id="taskTitle">Sub-tasks</h2>
+    <label class="f" for="specifics" id="specLabel" hidden>Job specifics</label>
+    <div id="specifics" class="spec" hidden role="document" aria-label="Job specifics" tabindex="0"></div>
+    <ul id="subtasks"></ul>
+    <div class="st" id="tstat"></div>
+    <div class="row" id="retryRow" hidden><button class="b" id="retry">Try again</button></div>
+  </section>
+
+  <section class="panel" id="msgPanel">
+    <h2>Message</h2>
+    <div class="mute" style="margin:-4px 0 8px">Available before signing in too, for instance if the passkey is not accepted.</div>
+    <div class="row"><input id="message" type="text" placeholder="Write your message" aria-label="Message to the manager"><button class="b" id="send">Send</button></div>
+    <div class="st" id="mstat"></div>
+    <ul id="msgs" aria-live="polite"></ul>
+    <div class="legend" id="legend" hidden><span><i class="dot failed"></i>not sent</span><span><i class="dot delivered"></i>delivered, no response yet</span><span><i class="dot opened"></i>opened by the manager</span><span><i class="dot handled"></i>handled</span></div>
+  </section>
+
+  <!-- test mode only: plays the manager's side, so the worker's side can be seen working -->
+  <section class="panel" id="mock" hidden>
+    <h2>Test mode · the manager's side</h2>
+    <div class="mute" style="margin:-4px 0 8px">This panel exists only in test mode and is not part of the worker's page. Use it to act as the manager.</div>
+    <label class="mute"><input type="checkbox" id="mockFail"> Make the next send fail (message or emergency)</label><br>
+    <label class="mute"><input type="checkbox" id="mockOffline"> No connection: clicks wait to be sent</label>
+    <table><tbody id="mockRows"><tr><td class="mute">No messages yet.</td></tr></tbody></table>
+    <h3 style="font-size:14px; margin:14px 0 4px">Clicks received by the service</h3>
+    <table><tbody id="mockClicks"><tr><td class="mute">None yet.</td></tr></tbody></table>
+  </section>
+</main>
+<div id="nameWin" class="win" hidden role="dialog" aria-modal="true" aria-labelledby="nameT">
+  <div class="box"><h2 id="nameT">Name this installation</h2>
+    <p>Give this terminal an ID, so that the manager can tell where its messages and emergencies come from.</p>
+    <input id="stationIn" type="text" maxlength="40" placeholder="e.g. Mail-Room1" aria-label="Installation ID" autocomplete="off" spellcheck="false">
+    <div class="st" id="nameStat"></div>
+    <div class="row"><button class="b" id="nameNo">Cancel</button><button class="b p" id="nameYes">Install</button></div></div>
+</div>
+<div id="sure" hidden role="dialog" aria-modal="true" aria-labelledby="sureT">
+  <div class="box"><h2 id="sureT">ARE YOU SURE?</h2><p id="sureP"></p>
+    <div class="row"><button class="b" id="sureNo">Cancel</button><button class="b p" id="sureYes">Yes, sign out</button></div></div>
+</div>
+<footer><span id="updatedStamp"></span> · © Computational Classnotes · CC BY-NC-SA 4.0</footer>
+
+<script id="config" type="application/json">{"id":"packing-station-live","made":"2026-11-24T03:57:46.000Z","appName":"Packing Station","short":"Packing Station","tasks":[],"auth":{"mode":"remote","url":"https://www.wolframcloud.com/obj/ccn2/TerminalKernel"},"sendPasskey":false,"builder_build":"2026.11.24-0415","logo":"icons/icon-192.png"}</script>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const CFG = JSON.parse($('#config').textContent);
+const MOCK = !!CFG.mock || /[?&]mock=1/.test(location.search);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+const clean = v => String(v || '').trim();
+const st = (el, cls, text) => { el.className = 'st ' + (cls || ''); el.textContent = text || ''; };
+
+/* ---------- messaging: two-way, through the service; a reply is optional ----------
+   service protocol (JSON, POST to auth.url as payload_b64; see the wire below):
+     send  {action:"message",  conv, mid, text, signedIn, task, passkey?, app, page} -> {ok:true}
+     poll  {action:"messages", conv, app, page} -> {ok:true, messages:[{mid, status:"delivered"|"opened"|"handled", reply?}]}
+   conv is this device's conversation id (kept in the browser); anyone may send, signed in or not */
+const STATUS = { sending: 'Sending…', failed: 'Not sent', delivered: 'Delivered, no response yet', opened: 'Opened by the manager', handled: 'Handled' };
+const CONV_KEY = 'ccn-terminal-conv-' + (CFG.id || CFG.appName), MSG_KEY = 'ccn-terminal-msgs-' + (CFG.id || CFG.appName);
+const rid = () => Array.from(crypto.getRandomValues(new Uint8Array(9)), x => x.toString(16).padStart(2, '0')).join('');
+let conv = rid(), msgs = [];
+if (!MOCK) { try { conv = localStorage.getItem(CONV_KEY) || (localStorage.setItem(CONV_KEY, conv), conv); msgs = JSON.parse(localStorage.getItem(MSG_KEY) || '[]'); } catch (e) {} }
+const saveMsgs = () => { if (!MOCK) try { localStorage.setItem(MSG_KEY, JSON.stringify(msgs.slice(-100))); } catch (e) {} };
+const hasService = () => CFG.auth && CFG.auth.mode === 'remote';
+
+/* test mode: a stand-in for the service, held in this page only */
+const mockSvc = { box: [] };
+async function deliver(m) {
+  if (MOCK) {
+    await new Promise(r => setTimeout(r, 500));
+    if ($('#mockFail').checked) { $('#mockFail').checked = false; throw new Error('test failure'); }
+    mockSvc.box.push({ mid: m.mid, text: m.text, at: m.at, signedIn: m.signedIn, task: m.task, station: station(), status: 'delivered', reply: '' }); renderMock(); return;
+  }
+  if (!hasService()) throw new Error('no messaging service is configured for this page');
+  const j = await service({ action: 'message', conv, mid: m.mid, text: m.text, signedIn: m.signedIn, task: m.task, ...(passkey ? { passkey } : {}) });
+  if (!accepted(j)) throw new Error(j.message || j.Message || 'the service did not accept it');
+}
+async function sendMessage(text) {
+  const m = { mid: rid(), text, at: new Date().toISOString(), status: 'sending', reply: '', signedIn: !!passkey, task: passkey && cur ? tasks[cur.i].name : '' };
+  msgs.push(m); renderMsgs();
+  try { await deliver(m); m.status = 'delivered'; m.error = ''; } catch (e) { m.status = 'failed'; m.error = e.message || String(e); }
+  saveMsgs(); renderMsgs();
+}
+async function resend(mid) {
+  const m = msgs.find(x => x.mid === mid); if (!m || m.status !== 'failed') return;
+  m.status = 'sending'; renderMsgs();
+  try { await deliver(m); m.status = 'delivered'; m.error = ''; } catch (e) { m.status = 'failed'; m.error = e.message || String(e); }
+  saveMsgs(); renderMsgs();
+}
+async function poll() {      // the manager's side changes status and replies; the page asks for them
+  const live = s => s === 'delivered' || s === 'opened';
+  if (MOCK || !hasService() || !(msgs.some(m => live(m.status)) || (em && live(em.status)))) return;
+  try {
+    const j = await service({ action: 'messages', conv });
+    if (!accepted(j) || !Array.isArray(j.messages)) return;
+    j.messages.forEach(u => { const m = msgs.find(x => x.mid === u.mid); if (m && STATUS[u.status] && u.status !== 'sending' && u.status !== 'failed') { m.status = u.status; if (u.reply) m.reply = String(u.reply); } });
+    if (em && j.emergency && j.emergency.eid === em.eid && live(j.emergency.status)) { em.status = j.emergency.status; } else if (em && j.emergency && j.emergency.eid === em.eid && j.emergency.status === 'handled') em.status = 'handled';
+    saveMsgs(); renderMsgs(); renderEm();
+  } catch (e) {}
+}
+setInterval(() => { if (document.visibilityState === 'visible') poll(); }, 20000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') poll(); });
+const hhmm = s => new Date(s).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+function renderMsgs() {
+  $('#legend').hidden = !msgs.length;
+  $('#msgs').innerHTML = msgs.slice().reverse().map(m => `<li><div class="top"><i class="dot ${m.status}" role="img" aria-label="${STATUS[m.status]}" title="${esc(STATUS[m.status] + (m.error ? ': ' + m.error : ''))}"></i><span class="txt">${esc(m.text)}</span><span class="when">${hhmm(m.at)}</span></div>` +
+    (m.status === 'failed' ? `<button class="again" data-mid="${m.mid}">Not sent${m.error ? ' (' + esc(m.error) + ')' : ''}. Send again</button>` : '') +
+    (m.reply ? `<div class="reply"><b>The manager replied</b>${esc(m.reply)}</div>` : '') + '</li>').join('');
+}
+$('#msgs').addEventListener('click', e => { const mid = e.target.dataset && e.target.dataset.mid; if (mid) resend(mid); });
+
+/* ---------- the emergency button: one press starts the emergency protocol at the service ----------
+     service protocol: {action:"emergency", conv, eid, at, signedIn, task, passkey?, app, page} -> {ok:true}
+     status comes back with the messages poll: {emergency:{eid, status}}; a failed send is retried every 5 s while the page is open */
+let em = null, emTimer = null;
+async function emSend() {
+  if (!em) return;
+  em.status = 'sending'; renderEm();
+  try {
+    if (MOCK) {
+      await new Promise(r => setTimeout(r, 400));
+      if ($('#mockFail').checked) { $('#mockFail').checked = false; throw new Error('test failure'); }
+      mockSvc.em = { eid: em.eid, at: em.at, signedIn: em.signedIn, task: em.task, station: station(), status: 'delivered' }; renderMock();
+    } else {
+      if (!hasService()) throw new Error('no service is configured for this page');
+      const j = await service({ action: 'emergency', conv, eid: em.eid, at: em.at, signedIn: em.signedIn, task: em.task, ...(passkey ? { passkey } : {}) });
+      if (!accepted(j)) throw new Error(j.message || j.Message || 'the service did not accept it');
+    }
+    em.status = 'delivered'; em.error = ''; clearInterval(emTimer); emTimer = null;
+  } catch (e) {
+    em.status = 'failed'; em.error = e.message || String(e);
+    if (!emTimer) emTimer = setInterval(() => { if (em && em.status === 'failed') emSend(); }, 5000);
+  }
+  renderEm();
+}
+function renderEm() {
+  $('#emBox').hidden = !em; if (!em) return;
+  $('#emDot').className = 'dot ' + em.status; $('#emDot').setAttribute('aria-label', STATUS[em.status]); $('#emDot').title = STATUS[em.status];
+  $('#emText').innerHTML = { sending: 'Sending the emergency…',
+    failed: `<b style="color:#dc2626">The emergency has NOT reached the service.</b> Trying again every 5 seconds.`,
+    delivered: `Emergency sent at ${hhmm(em.at)}. The emergency protocol has started.`,
+    opened: `Emergency sent at ${hhmm(em.at)}. The manager has seen it.`,
+    handled: `Emergency sent at ${hhmm(em.at)}. The manager has marked it handled.` }[em.status];
+  $('#emHelp').innerHTML = em.status === 'failed' ? `Do not wait for this page: raise the alarm on site and call the emergency services.${em.error ? ' (' + esc(em.error) + ')' : ''}` :
+    em.status === 'handled' ? '' : 'Stay safe. If you can, add what happened in the message box below.';
+}
+$('#emergency').onclick = () => {
+  if (em && em.status !== 'handled') { if (em.status === 'failed') emSend(); return; }    // one emergency at a time; a press while failed retries at once
+  em = { eid: rid(), at: new Date().toISOString(), status: 'sending', signedIn: !!passkey, task: passkey && cur ? tasks[cur.i].name : '' };
+  emSend(); $('#emBox').scrollIntoView({ block: 'nearest' });
+};
+
+/* test mode: the manager's side */
+async function mockClick(c) {
+  await new Promise(r => setTimeout(r, 150));
+  if ($('#mockOffline').checked) throw new Error('no connection (test)');
+  mockSvc.clicks = (mockSvc.clicks || []).concat([{ ...c, station: station() }]); renderMockClicks();
+}
+function renderMockClicks() {
+  const L = (mockSvc.clicks || []).slice(-15).reverse();
+  $('#mockClicks').innerHTML = L.length ? L.map(c => `<tr><td class="mute" style="white-space:nowrap">${new Date(c.at).toLocaleTimeString('en-GB')}</td><td>${c.action === 'tick'
+    ? `${c.checked ? '<b>ticked</b>' : '<b style="color:var(--bad)">unticked</b>'} <b class="sid">${esc(c.sub)}</b> · ${esc(c.task)}` : `<b>${esc(c.kind)}</b>${c.detail ? ' · ' + esc(c.detail) : ''}`}${c.station ? ' · ' + esc(c.station) : ''}</td></tr>`).join('') : '<tr><td class="mute">None yet.</td></tr>';
+}
+$('#mockOffline').addEventListener('change', () => { if (!$('#mockOffline').checked) pump(); });
+function mockSet(mid, status, reply) {
+  const b = mockSvc.box.find(x => x.mid === mid), m = msgs.find(x => x.mid === mid); if (!b || !m) return;
+  b.status = m.status = status; if (reply != null) b.reply = m.reply = reply;
+  renderMock(); renderMsgs();
+}
+function renderMock() {
+  if (!MOCK) return;
+  const e = mockSvc.em;
+  const emRow = e ? `<tr style="background:rgba(220,38,38,.1)"><td><i class="dot ${e.status}" title="${STATUS[e.status]}"></i></td>
+    <td><b style="color:#dc2626">EMERGENCY</b><div class="mute">${hhmm(e.at)} · ${e.station ? '<b>' + esc(e.station) + '</b> · ' : ''}${e.signedIn ? 'signed in' + (e.task ? ' · job: ' + esc(e.task) : '') : '<b style="color:var(--bad)">not signed in</b>'}</div></td>
+    <td style="white-space:nowrap"><button class="b" data-act="emopen" ${e.status !== 'delivered' ? 'disabled' : ''}>Open</button>
+      <button class="b" data-act="emhandle" ${e.status === 'handled' ? 'disabled' : ''}>Mark handled</button></td></tr>` : '';
+  $('#mockRows').innerHTML = emRow + (!mockSvc.box.length ? (e ? '' : '<tr><td class="mute">No messages yet.</td></tr>') : mockSvc.box.slice().reverse().map(b => `<tr>
+    <td><i class="dot ${b.status}" title="${STATUS[b.status]}"></i></td>
+    <td>${esc(b.text)}<div class="mute">${hhmm(b.at)} · ${b.station ? '<b>' + esc(b.station) + '</b> · ' : ''}${b.signedIn ? 'signed in' + (b.task ? ' · job: ' + esc(b.task) : '') : '<b style="color:var(--bad)">not signed in</b>'}${b.reply ? ' · replied: “' + esc(b.reply) + '”' : ''}</div></td>
+    <td style="white-space:nowrap"><button class="b" data-act="open" data-mid="${b.mid}" ${b.status !== 'delivered' ? 'disabled' : ''}>Open</button>
+      <button class="b" data-act="reply" data-mid="${b.mid}" ${b.status === 'handled' ? 'disabled' : ''}>Reply…</button>
+      <button class="b" data-act="handle" data-mid="${b.mid}" ${b.status === 'handled' ? 'disabled' : ''}>Mark handled</button></td></tr>`).join(''));
+}
+$('#mockRows').addEventListener('click', e => {
+  const t = e.target, act = t.dataset && t.dataset.act;
+  if ((act === 'emopen' || act === 'emhandle') && mockSvc.em && em) { mockSvc.em.status = em.status = act === 'emopen' ? 'opened' : 'handled'; renderMock(); renderEm(); return; }
+  const mid = t.dataset && t.dataset.mid; if (!mid) return;
+  if (t.dataset.act === 'open') mockSet(mid, 'opened');
+  if (t.dataset.act === 'handle') mockSet(mid, 'handled');
+  if (t.dataset.act === 'reply') {
+    const td = t.closest('td'); td.innerHTML = `<div class="row"><input type="text" placeholder="The manager's reply" style="min-width:160px"><button class="b p">Send reply</button></div>`;
+    const inp = td.querySelector('input'), go = () => { const r = clean(inp.value); if (r) mockSet(mid, 'opened', r); else renderMock(); };
+    td.querySelector('button').onclick = go; inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') go(); }); inp.focus();
+  }
+});
+
+/* ---------- SHA-256 (Web Crypto where available; a plain implementation otherwise, e.g. on file:// in some browsers) ---------- */
+function sha256Plain(bytes) {
+  const K = new Uint32Array([0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);
+  const H = new Uint32Array([0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19]);
+  const n = bytes.length, total = ((n + 9 + 63) >> 6) << 6, m = new Uint8Array(total);
+  m.set(bytes); m[n] = 0x80; const dv = new DataView(m.buffer);
+  dv.setUint32(total - 8, Math.floor(n / 0x20000000)); dv.setUint32(total - 4, (n << 3) >>> 0);
+  const w = new Uint32Array(64), r = (x, k) => (x >>> k) | (x << (32 - k));
+  for (let o = 0; o < total; o += 64) {
+    for (let i = 0; i < 16; i++) w[i] = dv.getUint32(o + 4 * i);
+    for (let i = 16; i < 64; i++) { const a = w[i - 15], b = w[i - 2]; w[i] = (w[i - 16] + (r(a, 7) ^ r(a, 18) ^ (a >>> 3)) + w[i - 7] + (r(b, 17) ^ r(b, 19) ^ (b >>> 10))) >>> 0; }
+    let [a, b, c, d, e, f, g, h] = H;
+    for (let i = 0; i < 64; i++) {
+      const t1 = (h + (r(e, 6) ^ r(e, 11) ^ r(e, 25)) + ((e & f) ^ (~e & g)) + K[i] + w[i]) >>> 0;
+      const t2 = ((r(a, 2) ^ r(a, 13) ^ r(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) >>> 0;
+      h = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+    }
+    H[0] += a; H[1] += b; H[2] += c; H[3] += d; H[4] += e; H[5] += f; H[6] += g; H[7] += h;
+  }
+  return Array.from(H, x => x.toString(16).padStart(8, '0')).join('');
+}
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(text);
+  try { if (crypto && crypto.subtle) return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), x => x.toString(16).padStart(2, '0')).join(''); } catch (e) {}
+  return sha256Plain(bytes);
+}
+
+/* ---------- the passkey, and which tasks are already complete ----------
+   service protocol (JSON, POST to auth.url as payload_b64; see the wire below):
+     sign-in   {action:"signin",   passkey, app, page}              -> {ok:true, done:["task name", …]}   (done optional)
+     sign-out  {action:"complete", passkey, app, page, task, subtasks} -> {ok:true}
+   with the in-page check, completed tasks are remembered on this device only */
+let passkey = '';     // held in memory only while signed in, never stored
+const DONE_KEY = 'ccn-terminal-done-' + (CFG.id || CFG.appName);
+const localDone = () => { try { const v = JSON.parse(localStorage.getItem(DONE_KEY) || '[]'); return Array.isArray(v) ? v.map(String) : []; } catch (e) { return []; } };
+const saveLocalDone = list => { try { localStorage.setItem(DONE_KEY, JSON.stringify(list)); } catch (e) {} };
+/* the wire: one form field, payload_b64 = base64 of the UTF-8 JSON request; the reply is {"reply_b64": base64 of the UTF-8 JSON reply}.
+   base64 keeps every language intact through the Wolfram Cloud; a form POST needs no CORS preflight */
+const b64enc = s => { const b = new TextEncoder().encode(s); let x = ''; for (let i = 0; i < b.length; i += 0x8000) x += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(x); };
+const b64dec = s => new TextDecoder().decode(Uint8Array.from(atob(s), c => c.charCodeAt(0)));
+async function service(body) {
+  const a = CFG.auth;
+  const r = await fetch(a.url, { method: 'POST', body: new URLSearchParams({ payload_b64: b64enc(JSON.stringify({ conv, ...body, app: CFG.appName, page: CFG.id, station: station() })) }) });
+  let j = null; try { j = await r.json(); if (j && typeof j.reply_b64 === 'string') j = JSON.parse(b64dec(j.reply_b64)); } catch (e) { j = null; }
+  if (!j || typeof j !== 'object') throw new Error(`Unreadable reply from the service (HTTP ${r.status}).`);
+  return j;
+}
+
+/* ---------- every click that matters is reported to the service at once, in order ----------
+     tick   {action:"tick",  job, task, sub, checked, at, passkey}     (ticks and unticks; nothing is deleted)
+     event  {action:"event", kind, detail, at, passkey?}               kinds: job-chosen, signout-cancel, signout-confirm, station-named, install
+   sign-in attempts, messages and the emergency are reported by their own requests.
+   With no connection the clicks wait here, in order, with a "waiting to send" sign, and are retried every 5 s and when the
+   connection returns. A reply of any kind means the service has the click; only a failed request is retried.
+   Sign-out completes only once every waiting click has reached the service. */
+const outbox = []; let outBusy = false, outTimer = null, outErr = '', outWaiters = [];
+function report(body) {
+  if (!MOCK && !hasService()) return;
+  outbox.push({ ...body, at: body.at || new Date().toISOString(), ...(passkey ? { passkey } : {}) });
+  renderOutbox(); pump();
+}
+async function pump() {
+  if (outBusy) return; outBusy = true; clearTimeout(outTimer);
+  while (outbox.length) {
+    try { MOCK ? await mockClick(outbox[0]) : await service(outbox[0]); outbox.shift(); outErr = ''; renderOutbox(); }
+    catch (e) { outErr = e.message || String(e); renderOutbox(); outBusy = false; outTimer = setTimeout(pump, 5000); return; }
+  }
+  outBusy = false; outWaiters.splice(0).forEach(f => f());
+}
+const allSent = () => outbox.length ? new Promise(r => outWaiters.push(r)) : Promise.resolve();
+addEventListener('online', pump);
+function renderOutbox() {
+  const n = outbox.length, box = $('#outbox'); box.hidden = !n; if (!n) return;
+  box.innerHTML = `<i class="dot delivered"></i> Waiting to send ${n} click${n === 1 ? '' : 's'}` + (outErr ? ` · no connection, trying again every 5 seconds <span class="mute">(${esc(outErr)})</span>` : '…');
+}
+const accepted = j => j.ok === true || j.accepted === true || j.Success === true;
+async function checkPasskey(p) {        // -> { ok, done: [task names] }
+  const a = CFG.auth || {};
+  if (a.mode === 'hash') return { ok: (await sha256Hex(a.salt + ':' + p)) === a.hash, done: localDone(), jobs: MOCK ? authoredJobs() : null };
+  if (a.mode === 'remote') {
+    if (MOCK) return { ok: p === '123', done: localDone(), jobs: authoredJobs() };
+    const j = await service({ action: 'signin', passkey: p });
+    const jobs = Array.isArray(j.jobs) ? j.jobs.filter(x => x && x.id != null && x.name).map(x => ({ id: String(x.id), name: String(x.name), from: 'service' })) : null;
+    return { ok: accepted(j), done: Array.isArray(j.done) ? j.done.map(String) : localDone(), jobs };
+  }
+  throw new Error('This page has no passkey check configured.');
+}
+async function recordComplete(t, list) {
+  const a = CFG.auth || {};
+  if (a.mode === 'remote' && !MOCK) { const j = await service({ action: 'complete', passkey, task: t.name, ...(t.id ? { job: t.id } : {}), subtasks: list }); if (!accepted(j)) throw new Error(j.message || j.Message || 'the service did not record it'); }
+  const d = localDone(), key = t.id || t.name; if (!d.includes(key)) { d.push(key); saveLocalDone(d); }
+}
+
+/* ---------- sub-tasks: fetched from each task's address ---------- */
+/* a job's reply: its specifics (shown read-only above the checkboxes) and its sub-tasks
+     JSON: {"specifics": "…", "subtasks": [ … ]}  (also "details" or "description"), or a plain list as before
+     plain text: the specifics, a line holding only ---, then one sub-task per line (without ---, every line is a sub-task) */
+function parseJob(raw) {
+  let specifics = '';
+  try { const v = JSON.parse(raw); if (v && !Array.isArray(v) && typeof v === 'object') specifics = String(v.specifics ?? v.details ?? v.description ?? ''); } catch (e) {
+    const m = raw.split(/\r?\n\s*---\s*\r?\n/); if (m.length > 1) { specifics = m[0]; raw = m.slice(1).join('\n'); }
+  }
+  return { specifics: specifics.trim(), list: parseSubtasks(raw) };
+}
+/* the job specifics' mini markup, the same rules as the job-authoring tool:
+     **bold**  __italic__ (or *italic*)  [red]…[/red] (red, amber, green, blue)  "- " starts a bullet; a blank line starts a paragraph
+   everything is escaped first, so the text can never carry HTML or script */
+function renderSpec(src) {
+  const inline = t => esc(t)
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/__(.+?)__/g, '<i>$1</i>')
+    .replace(/(^|[^*])\*(?!\s)(.+?)\*(?!\*)/g, '$1<i>$2</i>')
+    .replace(/\[(red|amber|green|blue)\]([\s\S]*?)\[\/\1\]/g, '<span class="c-$1">$2</span>');
+  const out = []; let para = [], list = [];
+  const flushP = () => { if (para.length) out.push('<p>' + para.map(inline).join('<br>') + '</p>'); para = []; };
+  const flushL = () => { if (list.length) out.push('<ul>' + list.map(x => '<li>' + inline(x) + '</li>').join('') + '</ul>'); list = []; };
+  for (const line of String(src || '').replace(/\r/g, '').split('\n')) {
+    if (/^\s*[-•]\s+/.test(line)) { flushP(); list.push(line.replace(/^\s*[-•]\s+/, '')); }
+    else if (!line.trim()) { flushP(); flushL(); }
+    else { flushL(); para.push(line); }
+  }
+  flushP(); flushL();
+  return out.join('');
+}
+
+/* sub-tasks: each has an ID number shown before its text
+     JSON: strings, or objects {"id": "T-104", "text": "…"} (also number/no, and name/title for the text)
+     plain text: "T-104 | text" per line, or the text alone
+     a sub-task without an ID is numbered by its place in the list: 1, 2, 3 … */
+function parseSubtasks(raw) {
+  const one = x => typeof x === 'string' ? { id: '', text: x } : (x && typeof x === 'object' ? { id: String(x.id ?? x.number ?? x.no ?? '').trim(), text: String(x.text ?? x.name ?? x.title ?? x.task ?? '') } : null);
+  const fromJSON = v => {
+    if (Array.isArray(v)) return v.map(one).filter(Boolean);
+    if (v && typeof v === 'object') for (const k of ['subtasks', 'sub_tasks', 'items', 'tasks', 'list', 'data']) if (k in v) return fromJSON(v[k]);
+    return null;
+  };
+  let list = null; try { list = fromJSON(JSON.parse(raw)); } catch (e) {}
+  if (!list) list = raw.split(/\r?\n/).map(l => { l = l.replace(/^\s*(?:[-*•]|\d+[.)]|\[[ xX]?\])\s*/, ''); const b = l.indexOf('|'); return b < 0 ? { id: '', text: l } : { id: l.slice(0, b).trim(), text: l.slice(b + 1) }; });
+  list = list.map(x => ({ id: x.id, text: x.text.trim() })).filter(x => x.text).slice(0, 1000);
+  return list.map((x, k) => ({ id: x.id || String(k + 1), text: x.text }));
+}
+/* test mode: jobs written in the job-authoring tool in this browser (it keeps them under this key, on the same site) */
+const AUTHOR_MOCK_KEY = 'ccn-terminal-author-mock';
+function authoredStore() { try { const v = JSON.parse(localStorage.getItem(AUTHOR_MOCK_KEY) || 'null'); return v && typeof v === 'object' ? v : null; } catch (e) { return null; } }
+function authoredJobs() { const S = authoredStore(); if (!S) return null; const L = Object.values(S).filter(j => j && j.id && j.name).map(j => ({ id: String(j.id), name: String(j.name), from: 'author' })); return L.length ? L : null; }
+async function fetchJob(t) {
+  if (t.from === 'author') {          // test mode: straight from the authoring tool's store in this browser
+    await new Promise(r => setTimeout(r, 150)); const j = (authoredStore() || {})[t.id];
+    if (!j) throw new Error('this job is no longer in the authoring tool');
+    const list = parseSubtasks(JSON.stringify(j.subtasks || [])); if (!list.length) throw new Error('the job has no sub-tasks');
+    return { specifics: String(j.specifics || ''), list };
+  }
+  if (t.from === 'service') {         // the job's contents come from the service when it is chosen
+    const j = await service({ action: 'job', job: t.id, passkey });
+    if (!accepted(j)) throw new Error(j.message || j.Message || 'the service refused it');
+    const list = parseSubtasks(JSON.stringify(j.subtasks || [])); if (!list.length) throw new Error('the reply held no sub-tasks');
+    return { specifics: String(j.specifics || ''), list };
+  }
+  if (MOCK) { await new Promise(r => setTimeout(r, 150)); return { specifics: `**${t.name}**: the specifics of this job, as written in the job-authoring tool.\n\nTest mode shows canned text here. In real use this box holds the job's full instructions: what to check, in what order, safety notes, and whom to call. It scrolls when the text is long, and the worker cannot change it.\n\n[red]**Wear safety boots.**[/red] *Report anything unusual.*\n\n- Read these specifics.\n- Carry out each sub-task below.\n- [green]Tick each one[/green] as it is done.`, list: [1, 2, 3].map(i => ({ id: 'T-' + (100 + i), text: `${t.name}: sub-task ${i}` })) }; }
+  const headers = CFG.sendPasskey ? { Authorization: 'Bearer ' + passkey } : {};
+  const r = await fetch(t.url, { headers, cache: 'no-store' });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const job = parseJob(await r.text());
+  if (!job.list.length) throw new Error('the reply held no sub-tasks');
+  return job;
+}
+
+/* ---------- one task per session: choose it, complete every sub-task, then sign out ---------- */
+let tasks = CFG.tasks || [];        // replaced at sign-in by the service's list (or, in test mode, the authoring tool's), when there is one
+let cur = null;      // { i, list: [strings], done: [booleans], error, loading }
+function choose(i) {
+  cur = { i }; $('#subtasks').dataset.task = '';
+  fetchJob(tasks[i]).then(job => { if (cur && cur.i === i) { cur.specifics = job.specifics; cur.list = job.list; cur.done = job.list.map(() => false); } })
+    .catch(e => { if (cur && cur.i === i) cur.error = e.message || String(e); }).finally(refresh);
+  refresh();
+}
+function refresh() {
+  if (!passkey) return;
+  const left = $('#task').options.length - 1;
+  const n = cur && cur.list ? cur.done.filter(Boolean).length : 0, all = cur && cur.list ? cur.list.length : 0, complete = !!(cur && cur.list && n === all);
+  $('#task').disabled = !!(cur && n > 0) || !left;      // the task is fixed once its first sub-task is ticked
+  $('#logout').disabled = !(complete || !left);
+  $('#logoutWhy').textContent = !left ? 'Every job is complete.' : !cur ? 'Choose a job first.' : cur.error ? 'Sign-out waits until the sub-tasks of this job can be loaded.' :
+    !cur.list ? 'Loading sub-tasks…' : complete ? 'Every sub-task is complete; signing out records this job as done.' : `Complete every sub-task of this job to sign out (${n} of ${all}).`;
+  $('#progress').innerHTML = all ? `<b>${n}</b> of ${all} complete` : left ? `${left} job${left === 1 ? '' : 's'} left` : '';
+  showTask();
+}
+function showTask() {
+  $('#taskPanel').hidden = !cur; if (!cur) return;
+  const t = tasks[cur.i];
+  $('#taskTitle').textContent = t.name; $('#retryRow').hidden = !cur.error;
+  const sp = !!(cur.list && cur.specifics); $('#specifics').hidden = $('#specLabel').hidden = !sp;
+  if (sp && $('#specifics').dataset.src !== cur.specifics) { $('#specifics').dataset.src = cur.specifics; $('#specifics').innerHTML = renderSpec(cur.specifics); $('#specifics').scrollTop = 0; }
+  if (cur.error) { $('#subtasks').innerHTML = ''; st($('#tstat'), 'bad', `The sub-tasks could not be loaded (${cur.error}).`); return; }
+  if (!cur.list) { $('#subtasks').innerHTML = ''; st($('#tstat'), '', 'Loading sub-tasks…'); return; }
+  st($('#tstat'), '', '');
+  const ul = $('#subtasks');
+  if (ul.dataset.task !== String(cur.i)) {       // rebuild only when another task is shown, so ticking keeps focus
+    ul.dataset.task = String(cur.i);
+    ul.innerHTML = cur.list.map((x, k) => `<li><label><input type="checkbox" data-k="${k}"><span><b class="sid">${esc(x.id)}</b> ${esc(x.text)}</span></label></li>`).join('');
+  }
+}
+$('#subtasks').addEventListener('change', e => {
+  const k = e.target.dataset.k; if (k == null || !cur || !cur.list) return;
+  cur.done[Number(k)] = e.target.checked; const t = tasks[cur.i];
+  report({ action: 'tick', job: t.id || t.name, task: t.name, sub: cur.list[Number(k)].id, checked: e.target.checked });
+  refresh();
+});
+$('#task').onchange = () => { const v = $('#task').value; if (v === '') { cur = null; refresh(); } else { const t = tasks[Number(v)]; report({ action: 'event', kind: 'job-chosen', detail: t.id || t.name }); choose(Number(v)); } };
+$('#retry').onclick = () => cur && choose(cur.i);
+
+/* ---------- sign in and out ---------- */
+async function signIn() {
+  const p = clean($('#passkey').value);
+  if (!p) { st($('#lstat'), 'bad', 'Please enter the passkey.'); return; }
+  st($('#lstat'), '', 'Checking…'); $('#login').disabled = true;
+  try {
+    const r = await checkPasskey(p);
+    if (!r.ok) { st($('#lstat'), 'bad', 'The passkey was not accepted.'); return; }
+    passkey = p; $('#passkey').value = ''; cur = null;
+    tasks = r.jobs && r.jobs.length ? r.jobs : (CFG.tasks || []);
+    const done = new Set(r.done), open = tasks.map((t, i) => [t, i]).filter(([t]) => !done.has(t.name) && !(t.id && done.has(t.id)));
+    $('#task').innerHTML = `<option value="">${open.length ? 'Choose a job…' : 'Every job is complete'}</option>` + open.map(([t, i]) => `<option value="${i}">${esc(t.name)}</option>`).join('');
+    $('#taskBar').hidden = false; $('#logoutPanel').hidden = false; $('#loginPanel').hidden = true;
+    st($('#lstat'), 'ok', ''); refresh();
+  } catch (e) { st($('#lstat'), 'bad', e.message || String(e)); }
+  finally { $('#login').disabled = false; }
+}
+$('#login').onclick = signIn;
+$('#passkey').addEventListener('keydown', e => { if (e.key === 'Enter') signIn(); });
+/* sign-out asks first: ARE YOU SURE? */
+$('#logout').onclick = () => {
+  if ($('#logout').disabled) return;
+  $('#sureP').textContent = cur && cur.list ? `Signing out records "${tasks[cur.i].name}" as done.` : 'You will be signed out.';
+  $('#sure').hidden = false; $('#sureNo').focus();
+};
+$('#sureNo').onclick = () => { $('#sure').hidden = true; report({ action: 'event', kind: 'signout-cancel', detail: cur ? (tasks[cur.i].id || tasks[cur.i].name) : '' }); $('#logout').focus(); };
+$('#sure').addEventListener('keydown', e => { if (e.key === 'Escape') $('#sureNo').click(); });
+$('#sure').addEventListener('click', e => { if (e.target.id === 'sure') $('#sureNo').click(); });
+$('#sureYes').onclick = () => { $('#sure').hidden = true; report({ action: 'event', kind: 'signout-confirm', detail: cur ? (tasks[cur.i].id || tasks[cur.i].name) : '' }); signOut(); };
+async function signOut() {
+  if ($('#logout').disabled) return;
+  const finished = cur && cur.list && cur.done.every(Boolean) ? cur : null, fname = finished ? tasks[finished.i].name : '';
+  $('#logout').disabled = true;
+  if (outbox.length) {               // every click first reaches the service; sign-out then follows by itself
+    $('#logoutWhy').textContent = 'Sending the clicks still waiting; sign-out completes as soon as the service has them all.';
+    await allSent();
+  }
+  if (finished) {
+    $('#logoutWhy').textContent = 'Recording the job as done…';
+    try { await recordComplete(tasks[finished.i], finished.list); }
+    catch (e) { $('#logout').disabled = false; $('#logoutWhy').textContent = `The job could not be recorded as done (${e.message || e}); you remain signed in. Press Sign out to try again.`; return; }
+  }
+  passkey = ''; cur = null; tasks = CFG.tasks || [];
+  $('#taskBar').hidden = $('#logoutPanel').hidden = $('#taskPanel').hidden = true; $('#loginPanel').hidden = false;
+  $('#task').innerHTML = '<option value="">Choose a job…</option>'; $('#task').disabled = false; $('#subtasks').innerHTML = ''; $('#subtasks').dataset.task = '';
+  st($('#lstat'), 'ok', finished ? `Signed out. "${fname}" is recorded as done.` : 'Signed out.'); $('#passkey').focus();
+};
+
+/* ---------- messaging ---------- */
+function send() { const text = clean($('#message').value); if (!text) return; $('#message').value = ''; st($('#mstat'), '', ''); sendMessage(text); }
+$('#send').onclick = send;
+$('#message').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+
+renderMsgs(); if (MOCK) { $('#mock').hidden = false; renderMock(); }
+if (MOCK) st($('#lstat'), 'warn', 'Test mode: canned sub-tasks, no requests are made.' + (CFG.auth && CFG.auth.mode === 'remote' ? ' The passkey is "123".' : ''));
+
+/* ---------- the installation's ID (e.g. Mail-Room1), asked for at install and sent with everything to the service ---------- */
+const STATION_KEY = 'ccn-terminal-station-' + (CFG.id || CFG.appName);
+let stationMem = '';
+function station() { if (stationMem) return stationMem; try { return localStorage.getItem(STATION_KEY) || ''; } catch (e) { return ''; } }
+function setStation(v) { stationMem = v; try { localStorage.setItem(STATION_KEY, v); } catch (e) {} showStation(); }
+function showStation() {         // the ID is printed in the title: "Packing Station (12)"
+  const v = station(), t = CFG.appName + (v ? ` (${v})` : '');
+  $('#appName').textContent = t; document.title = t;
+}
+const STATION_OK = /^[A-Za-z0-9][A-Za-z0-9 _.-]{0,39}$/;
+function askStation(then) {      // then(name) runs inside the press of Install, so the browser's install may follow at once
+  $('#stationIn').value = station(); st($('#nameStat'), '', ''); $('#nameWin').hidden = false; $('#stationIn').focus();
+  const done = () => { $('#nameWin').hidden = true; $('#nameYes').onclick = $('#nameNo').onclick = null; };
+  $('#nameNo').onclick = () => done();
+  $('#nameYes').onclick = () => {
+    const v = $('#stationIn').value.trim();
+    if (!STATION_OK.test(v)) { st($('#nameStat'), 'bad', 'Use 1–40 letters, digits, spaces, dashes, dots or underscores, starting with a letter or digit.'); $('#stationIn').focus(); return; }
+    setStation(v); report({ action: 'event', kind: 'station-named', detail: v }); done(); then(v);
+  };
+}
+$('#stationIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('#nameYes').click(); if (e.key === 'Escape') $('#nameNo').click(); });
+showStation();
+/* the client's logo, from the builder (later from the admin tool's account) */
+if (CFG.logo && /^(data:image\/(png|jpeg|gif|webp|svg\+xml);base64,|icons\/|https:\/\/)/.test(CFG.logo)) { $('#logo').src = CFG.logo; $('#logo').alt = CFG.appName + ' logo'; $('#logo').hidden = false; }
+
+/* ---------- install: the page opens offline once installed (needs https or localhost) ---------- */
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+  addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+}
+(() => {
+  /* the browser offers its own install only when every condition is met; this button is always shown:
+     it installs when it can, and otherwise says exactly what is in the way (as in the witness pages) */
+  let deferred = null; const btn = $('#installBtn'), box = $('#installMsg'), APPNAME = CFG.short || CFG.appName;
+  const tell = t => { box.textContent = t; box.hidden = false; clearTimeout(tell.h); tell.h = setTimeout(() => box.hidden = true, 14000); };
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isSafariMac = /Safari/.test(ua) && !/Chrome|Chromium|Edg|OPR/.test(ua) && !isIOS;
+  const isFirefox = /Firefox/.test(ua);
+  const installed = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const secure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  if (installed()) btn.hidden = true;
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; btn.hidden = false; });
+  addEventListener('appinstalled', () => { btn.hidden = true; deferred = null; tell(APPNAME + ' is installed. Open it from your desktop, apps list or home screen.'); });
+  btn.addEventListener('click', () => askStation(install));
+  // an installed app opened for the first time without an ID (iPhone keeps home-screen apps apart from Safari) asks for one
+  if (installed() && !station()) addEventListener('load', () => askStation(() => {}));
+  async function install(name) {
+    report({ action: 'event', kind: 'install', detail: deferred ? 'install offered' : (installed() ? 'already installed' : 'instructions shown') });
+    if (deferred) { deferred.prompt();
+      try { const c = await deferred.userChoice; if (c && c.outcome === 'dismissed') tell('Install cancelled. Press Install app to try again.'); } catch (e) {}
+      deferred = null; return; }
+    if (installed()) return tell(APPNAME + ' is already installed.');
+    if (location.protocol === 'file:' || location.protocol === 'blob:') return tell('Installation ID saved: ' + name + '. Opened as a file, so it cannot be installed. Put this folder on an https:// website (for example GitHub Pages) and open it from there.');
+    if (!secure) return tell('Installing needs a secure https:// address. Open ' + APPNAME + ' from an https:// link.');
+    if (isIOS) return tell('On iPhone and iPad: tap the Share button, then Add to Home Screen. (In Chrome on iPhone, the Share button is in the address bar.)');
+    if (isSafariMac) return tell('In Safari on a Mac: choose File, then Add to Dock.');
+    if (isFirefox) return tell('Firefox cannot install web apps. Open this page in Chrome or Edge, or on Android use the menu and Install.');
+    if (!('serviceWorker' in navigator)) return tell('This browser cannot install web apps. Try Chrome or Edge.');
+    tell('No install offer yet. Make sure this is not a private or incognito window, and that ' + APPNAME + ' is not already installed. Otherwise open the browser menu and choose Install ' + APPNAME + ' (or Cast, save and share, then Install page as app). On Android: menu, then Install app or Add to Home screen.');
+  }
+})();
+
+/* ---------- build stamp ---------- */
+(() => {
+  const APP_BUILD = '2026.11.24-0415';   // page design build, stamped at each commit
+  const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
+  const slot = document.getElementById('updatedStamp');
+  if (slot) slot.textContent = 'Page design build ' + APP_BUILD + (CFG.builder_build ? ' · builder build ' + CFG.builder_build : '') + ' · made ' + show(CFG.made);
+})();
+</script>
+</body>
+</html>
