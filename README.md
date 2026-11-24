@@ -14,7 +14,7 @@ From the top:
 4. **Sign out** — disabled until every sub-task of the chosen job is ticked. Pressing it opens an **ARE YOU SURE?** window; *Yes, sign out* then records the job as done; if it cannot be recorded, the person stays signed in and may try again. When every job is done, the pulldown says so and sign-out is open.
 5. **Message** — a box for messages to the manager, available before signing in as well, so that a worker who cannot sign in can still reach the manager. Messages are two-way, but a reply is optional. Each message carries a small dot: red, not sent (with *Send again*); yellow, delivered with no response yet; green, opened by the manager; blue, handled. A written reply appears under the message. Each dot also has a text label.
 
-Under the app's name is **Install app**, always shown (as on the witness pages): it installs the page as an app where the browser allows, and otherwise says what is in the way, for example on iPhone, Share then Add to Home Screen.
+Under the app's name is **Install app**, always shown (as on the witness pages). It first asks for the **installation's ID**, for example `Mail-Room1` or `Ducking-7`, since one page may be installed at several stations; then it installs the page as an app where the browser allows, and otherwise says what is in the way (on iPhone, Share then Add to Home Screen). The ID is printed in the title, after the app's name, for example *Packing Station (12)*, and kept on that device; an installed app opened without one asks for it. Every request to the service carries it as `station`.
 
 At the top right of the page is the **Emergency** button, styled as a red emergency stop. One press, with no sign-in, sends an emergency to the service, which starts the emergency protocol; its status uses the same colours. A second press while one is open does not raise another. If it cannot be sent, the page says so, tells the worker to raise the alarm on site, and retries every 5 seconds.
 
@@ -47,7 +47,7 @@ The page POSTs JSON to the service's address twice per session (`page` is the in
 | Emergency | `{"action": "emergency", "conv": …, "eid": …, "at": …, "signedIn": …, "task": …, "app": …, "page": …}` | `{"ok": true}`; the service starts the emergency protocol |
 | Status, every 20 s while anything is open | `{"action": "messages", "conv": …, "app": …, "page": …}` | `{"ok": true, "messages": [{"mid", "status", "reply"}], "emergency": {"eid", "status"}}` |
 
-`conv` is the device's conversation id, kept in the browser. Statuses are `delivered`, `opened` and `handled`. Messages and emergencies need no passkey: anyone may send. `done` lists the jobs already completed, which the pulldown leaves out. If the service omits `done`, the page falls back to what this browser remembers. The service is yet to be written; a Wolfram Cloud APIFunction is the natural home for it.
+Every request also carries `station`, the installation's ID (empty if none was given). `conv` is the device's conversation id, kept in the browser. Statuses are `delivered`, `opened` and `handled`. Messages and emergencies need no passkey: anyone may send. `done` lists the jobs already completed, which the pulldown leaves out. If the service omits `done`, the page falls back to what this browser remembers. The service is yet to be written; a Wolfram Cloud APIFunction is the natural home for it.
 
 ## An instance
 

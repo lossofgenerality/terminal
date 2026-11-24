@@ -2,7 +2,7 @@
 # Passkey 'service-pass'; POST /svc/fail {"on": true} makes it refuse to record a completed task.
 # © Computational Classnotes · CC BY-NC-SA 4.0
 import http.server, json, sys, functools
-DONE = {}; STATE = {'fail_complete': False}
+DONE = {}; STATE = {'fail_complete': False}; SEEN_STATIONS = set()
 class H(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
     def cors(self):
@@ -10,6 +10,7 @@ class H(http.server.SimpleHTTPRequestHandler):
     def do_OPTIONS(self): self.send_response(204); self.cors(); self.end_headers()
     def do_POST(self):
         b = json.loads(self.rfile.read(int(self.headers['Content-Length'])) or b'{}')
+        if 'station' in b: SEEN_STATIONS.add(b['station'])
         if self.path == '/svc/fail': STATE['fail_complete'] = b.get('on', False); out = {'ok': True}
         elif b.get('passkey') != 'service-pass': out = {'ok': False}
         elif b.get('action') == 'signin': out = {'ok': True, 'done': DONE.get(b['page'], [])}

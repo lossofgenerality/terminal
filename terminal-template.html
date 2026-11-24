@@ -58,6 +58,10 @@ h1 { font-size:22px; margin:4px 0 0 }
 #emBox { border:2px solid #dc2626; background:rgba(220,38,38,.07) } #emBox h2 { color:#dc2626 }
 #emBox .row { flex-wrap:wrap }
 .warnline { color:var(--bad); font-size:13px; font-weight:600; margin-top:6px }
+#nameWin { position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; padding:20px }
+#nameWin .box { background:var(--panel); border-radius:12px; padding:20px 22px; max-width:400px; width:100%; box-shadow:0 10px 40px rgba(0,0,0,.3) }
+#nameWin h2 { margin:0 0 6px; font-size:18px } #nameWin p { margin:0 0 12px; color:var(--mute); font-size:13.5px }
+#nameWin .row { justify-content:flex-end; margin-top:12px }
 #sure { position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; padding:20px }
 #sure .box { background:var(--panel); border-radius:12px; padding:20px 22px; max-width:380px; width:100%; box-shadow:0 10px 40px rgba(0,0,0,.3); text-align:center }
 #sure h2 { margin:0 0 8px; font-size:20px; letter-spacing:.02em } #sure p { margin:0 0 16px; color:var(--mute); font-size:14px }
@@ -131,6 +135,13 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
     <table><tbody id="mockRows"><tr><td class="mute">No messages yet.</td></tr></tbody></table>
   </section>
 </main>
+<div id="nameWin" class="win" hidden role="dialog" aria-modal="true" aria-labelledby="nameT">
+  <div class="box"><h2 id="nameT">Name this installation</h2>
+    <p>Give this terminal an ID, so that the manager can tell where its messages and emergencies come from.</p>
+    <input id="stationIn" type="text" maxlength="40" placeholder="e.g. Mail-Room1" aria-label="Installation ID" autocomplete="off" spellcheck="false">
+    <div class="st" id="nameStat"></div>
+    <div class="row"><button class="b" id="nameNo">Cancel</button><button class="b p" id="nameYes">Install</button></div></div>
+</div>
 <div id="sure" hidden role="dialog" aria-modal="true" aria-labelledby="sureT">
   <div class="box"><h2 id="sureT">ARE YOU SURE?</h2><p id="sureP"></p>
     <div class="row"><button class="b" id="sureNo">Cancel</button><button class="b p" id="sureYes">Yes, sign out</button></div></div>
@@ -166,7 +177,7 @@ async function deliver(m) {
   if (MOCK) {
     await new Promise(r => setTimeout(r, 500));
     if ($('#mockFail').checked) { $('#mockFail').checked = false; throw new Error('test failure'); }
-    mockSvc.box.push({ mid: m.mid, text: m.text, at: m.at, signedIn: m.signedIn, task: m.task, status: 'delivered', reply: '' }); renderMock(); return;
+    mockSvc.box.push({ mid: m.mid, text: m.text, at: m.at, signedIn: m.signedIn, task: m.task, station: station(), status: 'delivered', reply: '' }); renderMock(); return;
   }
   if (!hasService()) throw new Error('no messaging service is configured for this page');
   const j = await service({ action: 'message', conv, mid: m.mid, text: m.text, signedIn: m.signedIn, task: m.task, ...(passkey ? { passkey } : {}) });
@@ -217,7 +228,7 @@ async function emSend() {
     if (MOCK) {
       await new Promise(r => setTimeout(r, 400));
       if ($('#mockFail').checked) { $('#mockFail').checked = false; throw new Error('test failure'); }
-      mockSvc.em = { eid: em.eid, at: em.at, signedIn: em.signedIn, task: em.task, status: 'delivered' }; renderMock();
+      mockSvc.em = { eid: em.eid, at: em.at, signedIn: em.signedIn, task: em.task, station: station(), status: 'delivered' }; renderMock();
     } else {
       if (!hasService()) throw new Error('no service is configured for this page');
       const j = await service({ action: 'emergency', conv, eid: em.eid, at: em.at, signedIn: em.signedIn, task: em.task, ...(passkey ? { passkey } : {}) });
@@ -257,12 +268,12 @@ function renderMock() {
   if (!MOCK) return;
   const e = mockSvc.em;
   const emRow = e ? `<tr style="background:rgba(220,38,38,.1)"><td><i class="dot ${e.status}" title="${STATUS[e.status]}"></i></td>
-    <td><b style="color:#dc2626">EMERGENCY</b><div class="mute">${hhmm(e.at)} · ${e.signedIn ? 'signed in' + (e.task ? ' · job: ' + esc(e.task) : '') : '<b style="color:var(--bad)">not signed in</b>'}</div></td>
+    <td><b style="color:#dc2626">EMERGENCY</b><div class="mute">${hhmm(e.at)} · ${e.station ? '<b>' + esc(e.station) + '</b> · ' : ''}${e.signedIn ? 'signed in' + (e.task ? ' · job: ' + esc(e.task) : '') : '<b style="color:var(--bad)">not signed in</b>'}</div></td>
     <td style="white-space:nowrap"><button class="b" data-act="emopen" ${e.status !== 'delivered' ? 'disabled' : ''}>Open</button>
       <button class="b" data-act="emhandle" ${e.status === 'handled' ? 'disabled' : ''}>Mark handled</button></td></tr>` : '';
   $('#mockRows').innerHTML = emRow + (!mockSvc.box.length ? (e ? '' : '<tr><td class="mute">No messages yet.</td></tr>') : mockSvc.box.slice().reverse().map(b => `<tr>
     <td><i class="dot ${b.status}" title="${STATUS[b.status]}"></i></td>
-    <td>${esc(b.text)}<div class="mute">${hhmm(b.at)} · ${b.signedIn ? 'signed in' + (b.task ? ' · job: ' + esc(b.task) : '') : '<b style="color:var(--bad)">not signed in</b>'}${b.reply ? ' · replied: “' + esc(b.reply) + '”' : ''}</div></td>
+    <td>${esc(b.text)}<div class="mute">${hhmm(b.at)} · ${b.station ? '<b>' + esc(b.station) + '</b> · ' : ''}${b.signedIn ? 'signed in' + (b.task ? ' · job: ' + esc(b.task) : '') : '<b style="color:var(--bad)">not signed in</b>'}${b.reply ? ' · replied: “' + esc(b.reply) + '”' : ''}</div></td>
     <td style="white-space:nowrap"><button class="b" data-act="open" data-mid="${b.mid}" ${b.status !== 'delivered' ? 'disabled' : ''}>Open</button>
       <button class="b" data-act="reply" data-mid="${b.mid}" ${b.status === 'handled' ? 'disabled' : ''}>Reply…</button>
       <button class="b" data-act="handle" data-mid="${b.mid}" ${b.status === 'handled' ? 'disabled' : ''}>Mark handled</button></td></tr>`).join(''));
@@ -318,7 +329,7 @@ const localDone = () => { try { const v = JSON.parse(localStorage.getItem(DONE_K
 const saveLocalDone = list => { try { localStorage.setItem(DONE_KEY, JSON.stringify(list)); } catch (e) {} };
 async function service(body) {
   const a = CFG.auth;
-  const r = await fetch(a.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, app: CFG.appName, page: CFG.id }) });
+  const r = await fetch(a.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, app: CFG.appName, page: CFG.id, station: station() }) });
   let j = null; try { j = await r.json(); } catch (e) {}
   if (!j) throw new Error(`Unreadable reply from the passkey service (HTTP ${r.status}).`);
   return j;
@@ -466,6 +477,29 @@ $('#message').addEventListener('keydown', e => { if (e.key === 'Enter') send(); 
 renderMsgs(); if (MOCK) { $('#mock').hidden = false; renderMock(); }
 if (MOCK) st($('#lstat'), 'warn', 'Test mode: canned sub-tasks, no requests are made.' + (CFG.auth && CFG.auth.mode === 'remote' ? ' The passkey is "123".' : ''));
 
+/* ---------- the installation's ID (e.g. Mail-Room1), asked for at install and sent with everything to the service ---------- */
+const STATION_KEY = 'ccn-terminal-station-' + (CFG.id || CFG.appName);
+let stationMem = '';
+function station() { if (stationMem) return stationMem; try { return localStorage.getItem(STATION_KEY) || ''; } catch (e) { return ''; } }
+function setStation(v) { stationMem = v; try { localStorage.setItem(STATION_KEY, v); } catch (e) {} showStation(); }
+function showStation() {         // the ID is printed in the title: "Packing Station (12)"
+  const v = station(), t = CFG.appName + (v ? ` (${v})` : '');
+  $('#appName').textContent = t; document.title = t;
+}
+const STATION_OK = /^[A-Za-z0-9][A-Za-z0-9 _.-]{0,39}$/;
+function askStation(then) {      // then(name) runs inside the press of Install, so the browser's install may follow at once
+  $('#stationIn').value = station(); st($('#nameStat'), '', ''); $('#nameWin').hidden = false; $('#stationIn').focus();
+  const done = () => { $('#nameWin').hidden = true; $('#nameYes').onclick = $('#nameNo').onclick = null; };
+  $('#nameNo').onclick = () => done();
+  $('#nameYes').onclick = () => {
+    const v = $('#stationIn').value.trim();
+    if (!STATION_OK.test(v)) { st($('#nameStat'), 'bad', 'Use 1–40 letters, digits, spaces, dashes, dots or underscores, starting with a letter or digit.'); $('#stationIn').focus(); return; }
+    setStation(v); done(); then(v);
+  };
+}
+$('#stationIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('#nameYes').click(); if (e.key === 'Escape') $('#nameNo').click(); });
+showStation();
+
 /* ---------- install: the page opens offline once installed (needs https or localhost) ---------- */
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
   addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
@@ -484,24 +518,27 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
   if (installed()) btn.hidden = true;
   addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; btn.hidden = false; });
   addEventListener('appinstalled', () => { btn.hidden = true; deferred = null; tell(APPNAME + ' is installed. Open it from your desktop, apps list or home screen.'); });
-  btn.addEventListener('click', async () => {
+  btn.addEventListener('click', () => askStation(install));
+  // an installed app opened for the first time without an ID (iPhone keeps home-screen apps apart from Safari) asks for one
+  if (installed() && !station()) addEventListener('load', () => askStation(() => {}));
+  async function install(name) {
     if (deferred) { deferred.prompt();
       try { const c = await deferred.userChoice; if (c && c.outcome === 'dismissed') tell('Install cancelled. Press Install app to try again.'); } catch (e) {}
       deferred = null; return; }
     if (installed()) return tell(APPNAME + ' is already installed.');
-    if (location.protocol === 'file:' || location.protocol === 'blob:') return tell('Opened as a file, so it cannot be installed. Put this folder on an https:// website (for example GitHub Pages) and open it from there.');
+    if (location.protocol === 'file:' || location.protocol === 'blob:') return tell('Installation ID saved: ' + name + '. Opened as a file, so it cannot be installed. Put this folder on an https:// website (for example GitHub Pages) and open it from there.');
     if (!secure) return tell('Installing needs a secure https:// address. Open ' + APPNAME + ' from an https:// link.');
     if (isIOS) return tell('On iPhone and iPad: tap the Share button, then Add to Home Screen. (In Chrome on iPhone, the Share button is in the address bar.)');
     if (isSafariMac) return tell('In Safari on a Mac: choose File, then Add to Dock.');
     if (isFirefox) return tell('Firefox cannot install web apps. Open this page in Chrome or Edge, or on Android use the menu and Install.');
     if (!('serviceWorker' in navigator)) return tell('This browser cannot install web apps. Try Chrome or Edge.');
     tell('No install offer yet. Make sure this is not a private or incognito window, and that ' + APPNAME + ' is not already installed. Otherwise open the browser menu and choose Install ' + APPNAME + ' (or Cast, save and share, then Install page as app). On Android: menu, then Install app or Add to Home screen.');
-  });
+  }
 })();
 
 /* ---------- build stamp ---------- */
 (() => {
-  const APP_BUILD = '2026.11.24-0053';   // page design build, stamped at each commit
+  const APP_BUILD = '2026.11.24-0055';   // page design build, stamped at each commit
   const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   const slot = document.getElementById('updatedStamp');
   if (slot) slot.textContent = 'Page design build ' + APP_BUILD + (CFG.builder_build ? ' · builder build ' + CFG.builder_build : '') + ' · made ' + show(CFG.made);
