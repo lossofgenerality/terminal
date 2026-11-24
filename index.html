@@ -56,7 +56,7 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
     <h2>3 · Sign-in and sign-out</h2>
     <div class="choice">
       <label><input type="radio" name="authMode" value="remote" checked><span><b>Passkey checked by a separate service (recommended).</b> <span class="mute">The page POSTs JSON to it at sign-in and at sign-out, and the service keeps which tasks are done (see the README). The service should also guard the sub-task addresses.</span></span></label>
-      <label><input type="radio" name="authMode" value="hash"><span><b>Passkey checked in the page (for tests only).</b> <span class="mute">Only a salted SHA-256 hash is written into the page, but the task addresses remain readable in its source, so this is a gate, not protection.</span></span></label>
+      <label><input type="radio" name="authMode" value="hash"><span><b>Passkey checked in the page (for tests only).</b> <span class="mute">Messages and the Emergency button need the service, so they cannot be sent with this choice. Only a salted SHA-256 hash is written into the page, but the task addresses remain readable in its source, so this is a gate, not protection.</span></span></label>
     </div>
     <div class="row" id="hashFields">
       <div><label class="f" for="pk1">Passkey (8 characters or more)</label><input id="pk1" type="password" autocomplete="new-password"></div>
@@ -84,7 +84,7 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
 
 <script>
 'use strict';
-const APP_BUILD = '2026.11.23-0555';   // build number, stamped at each commit
+const APP_BUILD = '2026.11.24-0037';   // build number, stamped at each commit
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 const st = (el, cls, text) => { el.className = 'st ' + (cls || ''); el.textContent = text || ''; };
@@ -266,7 +266,7 @@ function notesFor(c) {
   const L = [`# ${c.appName} — Production notes`, '', `*Made with the CCN Terminal builder · ${c.made.slice(0, 16).replace('T', ' ')} UTC · builder build ${APP_BUILD}*`, '', '## Tasks', '', '| # | Task | Address of its sub-tasks |', '|---|---|---|'];
   c.tasks.forEach((t, i) => L.push(`| ${i + 1} | ${t.name.replace(/\|/g, '\\|')} | ${t.url} |`));
   L.push('', '## Sign-in and sign-out', '', c.auth.mode === 'hash' ? '- The passkey is checked in the page against a salted SHA-256 hash; the passkey itself is not in the page.' : `- The passkey is checked by the service at ${c.auth.url}.`,
-    '- One task per session: sign-out is allowed once every sub-task of the chosen task is ticked, and records that task as done.', `- The passkey is ${c.sendPasskey ? '' : 'not '}sent with sub-task requests.`, '- Messaging is a placeholder (\`sendMessage\`), not yet connected.', '', '---', '© Computational Classnotes · CC BY-NC-SA 4.0', '');
+    '- One task per session: sign-out is allowed once every sub-task of the chosen task is ticked, and records that task as done.', `- The passkey is ${c.sendPasskey ? '' : 'not '}sent with sub-task requests.`, '- Messages to the manager and the Emergency button go to the service (with the in-page check they cannot be sent). Both work without signing in.', '', '---', '© Computational Classnotes · CC BY-NC-SA 4.0', '');
   return L.join('\n');
 }
 function readmeFor(c) { return `# ${c.appName}\n\nA CCN Terminal page. Open \`index.html\` (best from an https:// site such as GitHub Pages, so that Install works). Add \`?mock=1\` to the address for canned sub-tasks and no requests.\n\n- \`index.html\` — the page (everything built in; sub-tasks are fetched from each task's address)\n- \`notes.md\` — production notes\n- \`terminal-data.json\` — the page's settings, for reuse\n- \`manifest.webmanifest\`, \`sw.js\`, \`icons/\` — install files\n\n© Computational Classnotes · CC BY-NC-SA 4.0\n`; }
@@ -294,7 +294,7 @@ function makeZip(files) {      // files: [{name, data: Uint8Array}], stored with
 
 /* freshness: when this copy was last updated, and a reload offer when a newer copy is online */
 (() => {
-  const UPDATED = '2026-11-23T05:55:00Z';
+  const UPDATED = '2026-11-24T00:37:00Z';
   const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   const PUBLISHED = /^https?:/.test(location.protocol) && !isNaN(Date.parse(document.lastModified)) ? document.lastModified : UPDATED;
   const slot = document.getElementById('updatedStamp'); if (slot) slot.textContent = 'Build ' + APP_BUILD + ' · Updated ' + show(PUBLISHED);

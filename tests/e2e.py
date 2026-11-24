@@ -10,6 +10,9 @@ def ok(name, cond): results.append((name, bool(cond)))
 async def tick_all(t, leave=0):
     boxes=await t.query_selector_all('#subtasks input')
     for bx in boxes[:len(boxes)-leave]: await bx.check()
+async def signout(t, yes=True):
+    await t.click('#logout'); await t.wait_for_selector('#sure:not([hidden])')
+    await t.click('#sureYes' if yes else '#sureNo')
 async def signin(t, key):
     await t.fill('#passkey', key); await t.press('#passkey','Enter')
     try: await t.wait_for_selector('#taskBar:not([hidden])', timeout=5000)
@@ -65,14 +68,15 @@ async def main():
             await tick_all(t, leave=1); ok('task fixed after first tick', await t.is_disabled('#task'))
             ok('sign-out disabled with one left', await t.is_disabled('#logout'))
             await tick_all(t); ok('sign-out enabled when the task is complete', await t.is_enabled('#logout'))
-            await t.fill('#message','hello'); await t.click('#send'); ok('message calls placeholder', 'not yet connected' in await t.inner_text('#mstat'))
-            await t.click('#logout'); await t.wait_for_selector('#loginPanel:not([hidden])')
+            await signout(t, yes=False); ok('ARE YOU SURE? Cancel keeps the session', await t.is_visible('#taskBar') and await t.is_hidden('#sure') and 'ARE YOU SURE?' in await t.inner_text('#sureT'))
+            await t.fill('#message','hello'); await t.click('#send'); await t.wait_for_selector('#msgs .dot.failed'); ok('in-page check: message shows red, no service', 'Send again' in await t.inner_text('#msgs'))
+            await signout(t); await t.wait_for_selector('#loginPanel:not([hidden])')
             ok('signed out, task recorded', 'recorded as done' in await t.inner_text('#lstat') and await t.is_hidden('#taskBar'))
             await signin(t,'correct-horse'); o=await opts(t); ok('session 2: one task fewer', o==['Label printer','Dispatch log'])
             await t.select_option('#task', label='Label printer'); await t.wait_for_selector('#subtasks li'); ok('object list parsed', 'Clean the print head' in await t.inner_text('#subtasks'))
-            await tick_all(t); await t.click('#logout'); await t.wait_for_selector('#loginPanel:not([hidden])')
+            await tick_all(t); await signout(t); await t.wait_for_selector('#loginPanel:not([hidden])')
             await signin(t,'correct-horse'); await t.select_option('#task', label='Dispatch log'); await t.wait_for_selector('#subtasks li')
-            ok('plain-text list parsed', 'Sign the log' in await t.inner_text('#subtasks')); await tick_all(t); await t.click('#logout'); await t.wait_for_selector('#loginPanel:not([hidden])')
+            ok('plain-text list parsed', 'Sign the log' in await t.inner_text('#subtasks')); await tick_all(t); await signout(t); await t.wait_for_selector('#loginPanel:not([hidden])')
             await signin(t,'correct-horse'); ok('all done: none offered, sign-out open', await opts(t)==[] and await t.is_enabled('#logout') and 'Every task is complete' in await t.inner_text('#logoutWhy'))
             ok('footer stamp on instance', 'builder build 2026.' in await t.inner_text('#updatedStamp'))
             # ---- B: the separate service ----
@@ -81,10 +85,10 @@ async def main():
             await s.fill('#passkey','nope'); await s.press('#passkey','Enter'); await s.wait_for_function("document.querySelector('#lstat').textContent.includes('not accepted')"); ok('service refuses wrong passkey', True)
             await signin(s,'service-pass'); await s.select_option('#task','0'); await s.wait_for_selector('#subtasks li'); await tick_all(s)
             await s.evaluate("fetch('/svc/fail',{method:'POST',body:JSON.stringify({on:true})})"); await s.wait_for_timeout(200)
-            await s.click('#logout'); await s.wait_for_function("document.querySelector('#logoutWhy').textContent.includes('could not be recorded')")
+            await signout(s); await s.wait_for_function("document.querySelector('#logoutWhy').textContent.includes('could not be recorded')")
             ok('refused record keeps the session', await s.is_visible('#taskBar') and await s.is_enabled('#logout'))
             await s.evaluate("fetch('/svc/fail',{method:'POST',body:JSON.stringify({on:false})})"); await s.wait_for_timeout(200)
-            await s.click('#logout'); await s.wait_for_selector('#loginPanel:not([hidden])')
+            await signout(s); await s.wait_for_selector('#loginPanel:not([hidden])')
             ctx3=await b.new_context(); s2=await ctx3.new_page(); await s2.goto(U+'/out/'+root+'index.html')   # another device: nothing remembered locally
             await signin(s2,'service-pass'); ok('service record honoured on another device', await opts(s2)==['Label printer','Dispatch log'])
             # ---- C: preview and a missing list ----

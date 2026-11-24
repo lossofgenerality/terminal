@@ -36,6 +36,32 @@ h1 { font-size:22px; margin:4px 0 0 }
 #subtasks li input { margin-top:4px; width:17px; height:17px; accent-color:var(--accent) }
 #subtasks li input:checked + span { color:var(--mute); text-decoration:line-through }
 .progress { font-size:13px; color:var(--mute) } .progress b { color:var(--ink) }
+#msgs { list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:6px }
+#msgs li { border:1px solid var(--line); border-radius:8px; padding:7px 10px; background:var(--bg) }
+#msgs .top { display:flex; gap:8px; align-items:baseline }
+.dot { flex:none; width:9px; height:9px; border-radius:50%; display:inline-block; transform:translateY(-1px) }
+.dot.sending { background:#9ca3af } .dot.failed { background:#dc2626 } .dot.delivered { background:#eab308 } .dot.opened { background:#16a34a } .dot.handled { background:#2563eb }
+#msgs .txt { flex:1; white-space:pre-wrap; word-break:break-word } #msgs .when { color:var(--mute); font-size:12px; white-space:nowrap }
+#msgs .again { font-size:12.5px; margin-left:17px; color:var(--bad); background:none; border:0; padding:2px 0; cursor:pointer; text-decoration:underline; font:inherit }
+#msgs .reply { margin:6px 0 0 17px; padding:6px 9px; border-left:3px solid var(--accent); background:var(--accent-soft); border-radius:4px; font-size:14px }
+#msgs .reply b { font-size:12px; color:var(--mute); display:block; font-weight:600 }
+.legend { display:flex; gap:12px; flex-wrap:wrap; font-size:12px; color:var(--mute); margin-top:8px } .legend span { display:inline-flex; gap:5px; align-items:center }
+#mock { border:2px dashed var(--warn) } #mock h2 { color:var(--warn) }
+#mock table { width:100%; border-collapse:collapse; font-size:13.5px } #mock td { padding:5px 6px; border-bottom:1px solid var(--line); vertical-align:top }
+#mock button.b { font-size:12.5px; padding:4px 9px }
+/* the emergency button: a red stop on a yellow ring, as on factory machines */
+.estop { position:relative; z-index:60; flex:none; width:118px; height:118px; border-radius:50%; padding:9px; background:repeating-conic-gradient(#facc15 0 18deg, #1f2937 18deg 22deg); box-shadow:0 2px 8px rgba(0,0,0,.25); border:0; cursor:pointer }
+.estop span { display:flex; align-items:center; justify-content:center; width:100%; height:100%; border-radius:50%; background:radial-gradient(circle at 38% 32%, #f87171, #dc2626 45%, #991b1b); color:#fff; font:800 15px/1 system-ui,sans-serif; letter-spacing:.04em; text-shadow:0 1px 2px rgba(0,0,0,.5); box-shadow:inset 0 -6px 10px rgba(0,0,0,.35), 0 4px 0 #7f1d1d }
+.estop:active span { transform:translateY(3px); box-shadow:inset 0 -3px 6px rgba(0,0,0,.35), 0 1px 0 #7f1d1d }
+/* z-index 60 keeps the Emergency button above the ARE YOU SURE? window (50), so it can always be pressed */
+.estop:focus-visible { outline:3px solid var(--accent); outline-offset:3px }
+#emBox { border:2px solid #dc2626; background:rgba(220,38,38,.07) } #emBox h2 { color:#dc2626 }
+#emBox .row { flex-wrap:wrap }
+.warnline { color:var(--bad); font-size:13px; font-weight:600; margin-top:6px }
+#sure { position:fixed; inset:0; z-index:50; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; padding:20px }
+#sure .box { background:var(--panel); border-radius:12px; padding:20px 22px; max-width:380px; width:100%; box-shadow:0 10px 40px rgba(0,0,0,.3); text-align:center }
+#sure h2 { margin:0 0 8px; font-size:20px; letter-spacing:.02em } #sure p { margin:0 0 16px; color:var(--mute); font-size:14px }
+#sure .row { justify-content:center }
 [hidden] { display:none !important }
 footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px }
 </style>
@@ -49,11 +75,21 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
   </div>
 </div>
 <main>
-  <header class="row" style="justify-content:space-between"><h1 id="appName">__APP_NAME__</h1><button class="b p" id="installBtn" hidden>Install app</button></header>
+  <header class="row" style="justify-content:space-between; align-items:center">
+    <div><h1 id="appName">__APP_NAME__</h1><button class="b p" id="installBtn" hidden style="margin-top:6px">Install app</button></div>
+    <button class="estop" id="emergency" aria-label="Emergency: press to start the emergency protocol"><span>Emergency</span></button>
+  </header>
+
+  <section class="panel" id="emBox" hidden role="alert">
+    <h2>Emergency</h2>
+    <div class="row"><i class="dot" id="emDot"></i><span id="emText"></span></div>
+    <div class="mute" id="emHelp" style="margin-top:6px"></div>
+  </section>
 
   <section class="panel" id="loginPanel">
     <h2>Sign in</h2>
     <div class="row"><input id="passkey" type="password" placeholder="Enter passkey" autocomplete="current-password" aria-label="Passkey"><button class="b p" id="login">Sign in</button></div>
+    <div class="warnline" role="note">Warning: Unauthorized Access Forbidden</div>
     <div class="st" id="lstat"></div>
   </section>
 
@@ -74,8 +110,22 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
     <div class="mute" style="margin:-4px 0 8px">Available before signing in too, for instance if the passkey is not accepted.</div>
     <div class="row"><input id="message" type="text" placeholder="Write a message to the manager" aria-label="Message to the manager"><button class="b" id="send">Send</button></div>
     <div class="st" id="mstat"></div>
+    <ul id="msgs" aria-live="polite"></ul>
+    <div class="legend" id="legend" hidden><span><i class="dot failed"></i>not sent</span><span><i class="dot delivered"></i>delivered, no response yet</span><span><i class="dot opened"></i>opened by the manager</span><span><i class="dot handled"></i>handled</span></div>
+  </section>
+
+  <!-- test mode only: plays the manager's side, so the worker's side can be seen working -->
+  <section class="panel" id="mock" hidden>
+    <h2>Test mode · the manager's side</h2>
+    <div class="mute" style="margin:-4px 0 8px">This panel exists only in test mode and is not part of the worker's page. Use it to act as the manager.</div>
+    <label class="mute"><input type="checkbox" id="mockFail"> Make the next send fail (message or emergency)</label>
+    <table><tbody id="mockRows"><tr><td class="mute">No messages yet.</td></tr></tbody></table>
   </section>
 </main>
+<div id="sure" hidden role="dialog" aria-modal="true" aria-labelledby="sureT">
+  <div class="box"><h2 id="sureT">ARE YOU SURE?</h2><p id="sureP"></p>
+    <div class="row"><button class="b" id="sureNo">Cancel</button><button class="b p" id="sureYes">Yes, sign out</button></div></div>
+</div>
 <footer><span id="updatedStamp"></span> · © Computational Classnotes · CC BY-NC-SA 4.0</footer>
 
 <script id="config" type="application/json">__CONFIG__</script>
@@ -88,10 +138,138 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&l
 const clean = v => String(v || '').trim();
 const st = (el, cls, text) => { el.className = 'st ' + (cls || ''); el.textContent = text || ''; };
 
-/* ---------- messaging: placeholder, to be implemented ---------- */
-function sendMessage(text) {
-  // placeholder: deliberately empty for now
+/* ---------- messaging: two-way, through the service; a reply is optional ----------
+   service protocol (JSON, POST to auth.url):
+     send  {action:"message",  conv, mid, text, signedIn, task, passkey?, app, page} -> {ok:true}
+     poll  {action:"messages", conv, app, page} -> {ok:true, messages:[{mid, status:"delivered"|"opened"|"handled", reply?}]}
+   conv is this device's conversation id (kept in the browser); anyone may send, signed in or not */
+const STATUS = { sending: 'Sending…', failed: 'Not sent', delivered: 'Delivered, no response yet', opened: 'Opened by the manager', handled: 'Handled' };
+const CONV_KEY = 'ccn-terminal-conv-' + (CFG.id || CFG.appName), MSG_KEY = 'ccn-terminal-msgs-' + (CFG.id || CFG.appName);
+const rid = () => Array.from(crypto.getRandomValues(new Uint8Array(9)), x => x.toString(16).padStart(2, '0')).join('');
+let conv = rid(), msgs = [];
+if (!MOCK) { try { conv = localStorage.getItem(CONV_KEY) || (localStorage.setItem(CONV_KEY, conv), conv); msgs = JSON.parse(localStorage.getItem(MSG_KEY) || '[]'); } catch (e) {} }
+const saveMsgs = () => { if (!MOCK) try { localStorage.setItem(MSG_KEY, JSON.stringify(msgs.slice(-100))); } catch (e) {} };
+const hasService = () => CFG.auth && CFG.auth.mode === 'remote';
+
+/* test mode: a stand-in for the service, held in this page only */
+const mockSvc = { box: [] };
+async function deliver(m) {
+  if (MOCK) {
+    await new Promise(r => setTimeout(r, 500));
+    if ($('#mockFail').checked) { $('#mockFail').checked = false; throw new Error('test failure'); }
+    mockSvc.box.push({ mid: m.mid, text: m.text, at: m.at, signedIn: m.signedIn, task: m.task, status: 'delivered', reply: '' }); renderMock(); return;
+  }
+  if (!hasService()) throw new Error('no messaging service is configured for this page');
+  const j = await service({ action: 'message', conv, mid: m.mid, text: m.text, signedIn: m.signedIn, task: m.task, ...(passkey ? { passkey } : {}) });
+  if (!accepted(j)) throw new Error(j.message || j.Message || 'the service did not accept it');
 }
+async function sendMessage(text) {
+  const m = { mid: rid(), text, at: new Date().toISOString(), status: 'sending', reply: '', signedIn: !!passkey, task: passkey && cur ? tasks[cur.i].name : '' };
+  msgs.push(m); renderMsgs();
+  try { await deliver(m); m.status = 'delivered'; m.error = ''; } catch (e) { m.status = 'failed'; m.error = e.message || String(e); }
+  saveMsgs(); renderMsgs();
+}
+async function resend(mid) {
+  const m = msgs.find(x => x.mid === mid); if (!m || m.status !== 'failed') return;
+  m.status = 'sending'; renderMsgs();
+  try { await deliver(m); m.status = 'delivered'; m.error = ''; } catch (e) { m.status = 'failed'; m.error = e.message || String(e); }
+  saveMsgs(); renderMsgs();
+}
+async function poll() {      // the manager's side changes status and replies; the page asks for them
+  const live = s => s === 'delivered' || s === 'opened';
+  if (MOCK || !hasService() || !(msgs.some(m => live(m.status)) || (em && live(em.status)))) return;
+  try {
+    const j = await service({ action: 'messages', conv });
+    if (!accepted(j) || !Array.isArray(j.messages)) return;
+    j.messages.forEach(u => { const m = msgs.find(x => x.mid === u.mid); if (m && STATUS[u.status] && u.status !== 'sending' && u.status !== 'failed') { m.status = u.status; if (u.reply) m.reply = String(u.reply); } });
+    if (em && j.emergency && j.emergency.eid === em.eid && live(j.emergency.status)) { em.status = j.emergency.status; } else if (em && j.emergency && j.emergency.eid === em.eid && j.emergency.status === 'handled') em.status = 'handled';
+    saveMsgs(); renderMsgs(); renderEm();
+  } catch (e) {}
+}
+setInterval(() => { if (document.visibilityState === 'visible') poll(); }, 20000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') poll(); });
+const hhmm = s => new Date(s).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+function renderMsgs() {
+  $('#legend').hidden = !msgs.length;
+  $('#msgs').innerHTML = msgs.slice().reverse().map(m => `<li><div class="top"><i class="dot ${m.status}" role="img" aria-label="${STATUS[m.status]}" title="${esc(STATUS[m.status] + (m.error ? ': ' + m.error : ''))}"></i><span class="txt">${esc(m.text)}</span><span class="when">${hhmm(m.at)}</span></div>` +
+    (m.status === 'failed' ? `<button class="again" data-mid="${m.mid}">Not sent${m.error ? ' (' + esc(m.error) + ')' : ''}. Send again</button>` : '') +
+    (m.reply ? `<div class="reply"><b>The manager replied</b>${esc(m.reply)}</div>` : '') + '</li>').join('');
+}
+$('#msgs').addEventListener('click', e => { const mid = e.target.dataset && e.target.dataset.mid; if (mid) resend(mid); });
+
+/* ---------- the emergency button: one press starts the emergency protocol at the service ----------
+     service protocol: {action:"emergency", conv, eid, at, signedIn, task, passkey?, app, page} -> {ok:true}
+     status comes back with the messages poll: {emergency:{eid, status}}; a failed send is retried every 5 s while the page is open */
+let em = null, emTimer = null;
+async function emSend() {
+  if (!em) return;
+  em.status = 'sending'; renderEm();
+  try {
+    if (MOCK) {
+      await new Promise(r => setTimeout(r, 400));
+      if ($('#mockFail').checked) { $('#mockFail').checked = false; throw new Error('test failure'); }
+      mockSvc.em = { eid: em.eid, at: em.at, signedIn: em.signedIn, task: em.task, status: 'delivered' }; renderMock();
+    } else {
+      if (!hasService()) throw new Error('no service is configured for this page');
+      const j = await service({ action: 'emergency', conv, eid: em.eid, at: em.at, signedIn: em.signedIn, task: em.task, ...(passkey ? { passkey } : {}) });
+      if (!accepted(j)) throw new Error(j.message || j.Message || 'the service did not accept it');
+    }
+    em.status = 'delivered'; em.error = ''; clearInterval(emTimer); emTimer = null;
+  } catch (e) {
+    em.status = 'failed'; em.error = e.message || String(e);
+    if (!emTimer) emTimer = setInterval(() => { if (em && em.status === 'failed') emSend(); }, 5000);
+  }
+  renderEm();
+}
+function renderEm() {
+  $('#emBox').hidden = !em; if (!em) return;
+  $('#emDot').className = 'dot ' + em.status; $('#emDot').setAttribute('aria-label', STATUS[em.status]); $('#emDot').title = STATUS[em.status];
+  $('#emText').innerHTML = { sending: 'Sending the emergency…',
+    failed: `<b style="color:#dc2626">The emergency has NOT reached the service.</b> Trying again every 5 seconds.`,
+    delivered: `Emergency sent at ${hhmm(em.at)}. The emergency protocol has started.`,
+    opened: `Emergency sent at ${hhmm(em.at)}. The manager has seen it.`,
+    handled: `Emergency sent at ${hhmm(em.at)}. The manager has marked it handled.` }[em.status];
+  $('#emHelp').innerHTML = em.status === 'failed' ? `Do not wait for this page: raise the alarm on site and call the emergency services.${em.error ? ' (' + esc(em.error) + ')' : ''}` :
+    em.status === 'handled' ? '' : 'Stay safe. If you can, add what happened in the message box below.';
+}
+$('#emergency').onclick = () => {
+  if (em && em.status !== 'handled') { if (em.status === 'failed') emSend(); return; }    // one emergency at a time; a press while failed retries at once
+  em = { eid: rid(), at: new Date().toISOString(), status: 'sending', signedIn: !!passkey, task: passkey && cur ? tasks[cur.i].name : '' };
+  emSend(); $('#emBox').scrollIntoView({ block: 'nearest' });
+};
+
+/* test mode: the manager's side */
+function mockSet(mid, status, reply) {
+  const b = mockSvc.box.find(x => x.mid === mid), m = msgs.find(x => x.mid === mid); if (!b || !m) return;
+  b.status = m.status = status; if (reply != null) b.reply = m.reply = reply;
+  renderMock(); renderMsgs();
+}
+function renderMock() {
+  if (!MOCK) return;
+  const e = mockSvc.em;
+  const emRow = e ? `<tr style="background:rgba(220,38,38,.1)"><td><i class="dot ${e.status}" title="${STATUS[e.status]}"></i></td>
+    <td><b style="color:#dc2626">EMERGENCY</b><div class="mute">${hhmm(e.at)} · ${e.signedIn ? 'signed in' + (e.task ? ' · task: ' + esc(e.task) : '') : '<b style="color:var(--bad)">not signed in</b>'}</div></td>
+    <td style="white-space:nowrap"><button class="b" data-act="emopen" ${e.status !== 'delivered' ? 'disabled' : ''}>Open</button>
+      <button class="b" data-act="emhandle" ${e.status === 'handled' ? 'disabled' : ''}>Mark handled</button></td></tr>` : '';
+  $('#mockRows').innerHTML = emRow + (!mockSvc.box.length ? (e ? '' : '<tr><td class="mute">No messages yet.</td></tr>') : mockSvc.box.slice().reverse().map(b => `<tr>
+    <td><i class="dot ${b.status}" title="${STATUS[b.status]}"></i></td>
+    <td>${esc(b.text)}<div class="mute">${hhmm(b.at)} · ${b.signedIn ? 'signed in' + (b.task ? ' · task: ' + esc(b.task) : '') : '<b style="color:var(--bad)">not signed in</b>'}${b.reply ? ' · replied: “' + esc(b.reply) + '”' : ''}</div></td>
+    <td style="white-space:nowrap"><button class="b" data-act="open" data-mid="${b.mid}" ${b.status !== 'delivered' ? 'disabled' : ''}>Open</button>
+      <button class="b" data-act="reply" data-mid="${b.mid}" ${b.status === 'handled' ? 'disabled' : ''}>Reply…</button>
+      <button class="b" data-act="handle" data-mid="${b.mid}" ${b.status === 'handled' ? 'disabled' : ''}>Mark handled</button></td></tr>`).join(''));
+}
+$('#mockRows').addEventListener('click', e => {
+  const t = e.target, act = t.dataset && t.dataset.act;
+  if ((act === 'emopen' || act === 'emhandle') && mockSvc.em && em) { mockSvc.em.status = em.status = act === 'emopen' ? 'opened' : 'handled'; renderMock(); renderEm(); return; }
+  const mid = t.dataset && t.dataset.mid; if (!mid) return;
+  if (t.dataset.act === 'open') mockSet(mid, 'opened');
+  if (t.dataset.act === 'handle') mockSet(mid, 'handled');
+  if (t.dataset.act === 'reply') {
+    const td = t.closest('td'); td.innerHTML = `<div class="row"><input type="text" placeholder="The manager's reply" style="min-width:160px"><button class="b p">Send reply</button></div>`;
+    const inp = td.querySelector('input'), go = () => { const r = clean(inp.value); if (r) mockSet(mid, 'opened', r); else renderMock(); };
+    td.querySelector('button').onclick = go; inp.addEventListener('keydown', ev => { if (ev.key === 'Enter') go(); }); inp.focus();
+  }
+});
 
 /* ---------- SHA-256 (Web Crypto where available; a plain implementation otherwise, e.g. on file:// in some browsers) ---------- */
 function sha256Plain(bytes) {
@@ -229,7 +407,17 @@ async function signIn() {
 }
 $('#login').onclick = signIn;
 $('#passkey').addEventListener('keydown', e => { if (e.key === 'Enter') signIn(); });
-$('#logout').onclick = async () => {
+/* sign-out asks first: ARE YOU SURE? */
+$('#logout').onclick = () => {
+  if ($('#logout').disabled) return;
+  $('#sureP').textContent = cur && cur.list ? `Signing out records "${tasks[cur.i].name}" as done.` : 'You will be signed out.';
+  $('#sure').hidden = false; $('#sureNo').focus();
+};
+$('#sureNo').onclick = () => { $('#sure').hidden = true; $('#logout').focus(); };
+$('#sure').addEventListener('keydown', e => { if (e.key === 'Escape') $('#sureNo').click(); });
+$('#sure').addEventListener('click', e => { if (e.target.id === 'sure') $('#sureNo').click(); });
+$('#sureYes').onclick = () => { $('#sure').hidden = true; signOut(); };
+async function signOut() {
   if ($('#logout').disabled) return;
   const finished = cur && cur.list && cur.done.every(Boolean) ? cur : null;
   if (finished) {
@@ -244,10 +432,11 @@ $('#logout').onclick = async () => {
 };
 
 /* ---------- messaging ---------- */
-function send() { const text = clean($('#message').value); if (!text) return; sendMessage(text); st($('#mstat'), 'warn', 'Messaging is not yet connected.'); }
+function send() { const text = clean($('#message').value); if (!text) return; $('#message').value = ''; st($('#mstat'), '', ''); sendMessage(text); }
 $('#send').onclick = send;
 $('#message').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
 
+renderMsgs(); if (MOCK) { $('#mock').hidden = false; renderMock(); }
 if (MOCK) st($('#lstat'), 'warn', 'Test mode: canned sub-tasks, no requests are made.' + (CFG.auth && CFG.auth.mode === 'remote' ? ' The passkey is "test-passkey".' : ''));
 
 /* ---------- install: the page opens offline once installed (needs https or localhost) ---------- */
@@ -263,7 +452,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 
 /* ---------- build stamp ---------- */
 (() => {
-  const APP_BUILD = '2026.11.23-0555';   // page design build, stamped at each commit
+  const APP_BUILD = '2026.11.24-0037';   // page design build, stamped at each commit
   const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   const slot = document.getElementById('updatedStamp');
   if (slot) slot.textContent = 'Page design build ' + APP_BUILD + (CFG.builder_build ? ' · builder build ' + CFG.builder_build : '') + ' · made ' + show(CFG.made);
