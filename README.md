@@ -68,6 +68,7 @@ Add `?mock=1` to a terminal page's address: canned sub-tasks, no requests. With 
 - `terminal-template.html` — the terminal page it fills in
 - `icons/` — the icons placed in each instance
 - `examples/` — sub-task lists used by the builder's example
+- `demo/` — a terminal page built by the builder, in test mode (passkey `123`): https://lossofgenerality.github.io/terminal/demo/
 - `tests/` — end-to-end checks in a headless browser, with a stand-in passkey service (see `tests/README.md`)
 
 This app is independent: it shares no files with any other app.
