@@ -49,6 +49,8 @@ The service is `ff_terminal` in the Wolfram Cloud, live at `https://www.wolframc
 | Job chosen, Sign out Cancel, Sign out Yes, station named, Install | `{"action": "event", "kind": "job-chosen" \| "signout-cancel" \| "signout-confirm" \| "station-named" \| "install", "detail": …, "at": …}` (with `passkey` when signed in) | `{"ok": true}` |
 | Status, every 20 s while anything is open | `{"action": "messages", "conv": …, "app": …, "page": …}` | `{"ok": true, "messages": [{"mid", "status", "reply"}], "emergency": {"eid", "status"}}` |
 
+**Keys:** passkeys and author keys are read with spaces and surrounding quotes dropped (`"123"`, `'123'`, `“123”` all mean `123`), on the pages and in the service, both when a key is added and when it is checked.
+
 Every request also carries `station`, the installation's ID (empty if none was given). `conv` is the device's conversation id, kept in the browser. Statuses are `delivered`, `opened` and `handled`. Messages and emergencies need no passkey: anyone may send. `done` lists the jobs already completed, which the pulldown leaves out. If the service omits `done`, the page falls back to what this browser remembers. Sign-in attempts, accepted or refused, are logged by the service itself.
 
 **Every click is sent at once, in order.** With no connection, clicks wait on the page under a small amber *Waiting to send …* sign, and are retried every 5 seconds and as soon as the connection returns; any reply means the service has the click. **Sign out completes only once the service has received every waiting click**; the job is then recorded as done. The emergency keeps retrying on its own.

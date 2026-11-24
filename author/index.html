@@ -131,11 +131,13 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
 
 <script>
 'use strict';
-const APP_BUILD = '2026.11.24-0415';   // build number, stamped at each commit
+const APP_BUILD = '2026.11.24-0430';   // build number, stamped at each commit
 /* where the service is: the address below, or ?svc=https://… ; ?mock=1 keeps the jobs in this browser instead (author key: 123) */
 const SERVICE = new URLSearchParams(location.search).get('svc') || 'https://www.wolframcloud.com/obj/ccn2/TerminalKernel';
 const MOCK = /[?&]mock=1/.test(location.search);
 const $ = s => document.querySelector(s);
+/* keys (passkeys, author keys): spaces and surrounding quotes are dropped, the same rule as the service: "123", '123', “123” all mean 123 */
+const keyClean = v => { let s = String(v || '').trim(); for (let i = 0; i < 3; i++) { const m = s.match(/^(["'`“”‘’„«»])([\s\S]*)(["'`“”‘’„«»])$/); if (!m) break; s = m[2].trim(); } return s; };
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 const st = (el, cls, text) => { el.className = 'st ' + (cls || ''); el.textContent = text || ''; };
 
@@ -333,7 +335,7 @@ $('#dl').onclick = () => {
 
 /* ---------- sign in and out ---------- */
 async function signIn() {
-  const k = $('#key').value; if (!k) { st($('#sstat'), 'bad', 'Please enter the author key.'); return; }
+  const k = keyClean($('#key').value); if (!k) { st($('#sstat'), 'bad', 'Please enter the author key.'); return; }
   st($('#sstat'), '', 'Checking…');
   try { const j = await svc({ action: 'listJobs', authorKey: k }); if (!j.ok) { st($('#sstat'), 'bad', j.message || 'The author key was not accepted.'); return; }
     authorKey = k; $('#key').value = ''; jobsList = j.jobs || []; drawList(); $('#signPanel').hidden = true; $('#work').hidden = false;

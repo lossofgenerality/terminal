@@ -161,6 +161,8 @@ const CFG = JSON.parse($('#config').textContent);
 const MOCK = !!CFG.mock || /[?&]mock=1/.test(location.search);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 const clean = v => String(v || '').trim();
+/* keys (passkeys, author keys): spaces and surrounding quotes are dropped, the same rule as the service: "123", '123', “123” all mean 123 */
+const keyClean = v => { let s = String(v || '').trim(); for (let i = 0; i < 3; i++) { const m = s.match(/^(["'`“”‘’„«»])([\s\S]*)(["'`“”‘’„«»])$/); if (!m) break; s = m[2].trim(); } return s; };
 const st = (el, cls, text) => { el.className = 'st ' + (cls || ''); el.textContent = text || ''; };
 
 /* ---------- messaging: two-way, through the service; a reply is optional ----------
@@ -520,7 +522,7 @@ $('#retry').onclick = () => cur && choose(cur.i);
 
 /* ---------- sign in and out ---------- */
 async function signIn() {
-  const p = clean($('#passkey').value);
+  const p = keyClean($('#passkey').value);
   if (!p) { st($('#lstat'), 'bad', 'Please enter the passkey.'); return; }
   st($('#lstat'), '', 'Checking…'); $('#login').disabled = true;
   try {
@@ -638,7 +640,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 
 /* ---------- build stamp ---------- */
 (() => {
-  const APP_BUILD = '2026.11.24-0415';   // page design build, stamped at each commit
+  const APP_BUILD = '2026.11.24-0430';   // page design build, stamped at each commit
   const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   const slot = document.getElementById('updatedStamp');
   if (slot) slot.textContent = 'Page design build ' + APP_BUILD + (CFG.builder_build ? ' · builder build ' + CFG.builder_build : '') + ' · made ' + show(CFG.made);
