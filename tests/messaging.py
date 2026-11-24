@@ -46,8 +46,10 @@ async def main():
         await pg.click('[data-act=emopen]'); ok('emergency green when seen', await pg.eval_on_selector('#emDot', 'd=>d.classList.contains("opened")'))
         await pg.click('[data-act=emhandle]'); ok('emergency blue when handled', await pg.eval_on_selector('#emDot', 'd=>d.classList.contains("handled")'))
         # signed in: the task travels with the message
-        await pg.fill('#passkey', 'test-passkey'); await pg.press('#passkey', 'Enter'); await pg.wait_for_selector('#taskBar:not([hidden])')
-        await pg.select_option('#task', '0'); await pg.fill('#message', 'Come see me ASAP'); await pg.click('#send'); await pg.wait_for_timeout(700)
+        await pg.fill('#passkey', '123'); await pg.press('#passkey', 'Enter'); await pg.wait_for_selector('#taskBar:not([hidden])')
+        await pg.select_option('#task', '0'); await pg.wait_for_selector('#subtasks li')
+        ok('test-mode specifics shown above the checkboxes', await pg.is_visible('#specifics') and 'specifics of this job' in await pg.input_value('#specifics'))
+        await pg.fill('#message', 'Come see me ASAP'); await pg.click('#send'); await pg.wait_for_timeout(700)
         ok('signed-in message carries the task', 'job: Morning inspection' in await pg.inner_text('#mockRows'))
         bx = await pg.query_selector_all('#subtasks input')
         for x in bx: await x.check()

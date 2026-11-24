@@ -62,6 +62,8 @@ h1 { font-size:22px; margin:4px 0 0 }
 #sure .box { background:var(--panel); border-radius:12px; padding:20px 22px; max-width:380px; width:100%; box-shadow:0 10px 40px rgba(0,0,0,.3); text-align:center }
 #sure h2 { margin:0 0 8px; font-size:20px; letter-spacing:.02em } #sure p { margin:0 0 16px; color:var(--mute); font-size:14px }
 #sure .row { justify-content:center }
+#specifics { width:100%; font:inherit; font-size:14px; line-height:1.5; padding:9px 11px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--ink); resize:vertical; max-height:50vh; overflow:auto; margin:0 0 12px; white-space:pre-wrap }
+#specifics:focus { outline:2px solid var(--accent); outline-offset:1px }
 [hidden] { display:none !important }
 footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px }
 </style>
@@ -100,6 +102,8 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
 
   <section class="panel" id="taskPanel" hidden>
     <h2 id="taskTitle">Sub-tasks</h2>
+    <label class="f" for="specifics" id="specLabel" hidden>Job specifics</label>
+    <textarea id="specifics" readonly hidden rows="7" aria-label="Job specifics"></textarea>
     <ul id="subtasks"></ul>
     <div class="st" id="tstat"></div>
     <div class="row" id="retryRow" hidden><button class="b" id="retry">Try again</button></div>
@@ -319,7 +323,7 @@ async function checkPasskey(p) {        // -> { ok, done: [task names] }
   const a = CFG.auth || {};
   if (a.mode === 'hash') return { ok: (await sha256Hex(a.salt + ':' + p)) === a.hash, done: localDone() };
   if (a.mode === 'remote') {
-    if (MOCK) return { ok: p === 'test-passkey', done: localDone() };
+    if (MOCK) return { ok: p === '123', done: localDone() };
     const j = await service({ action: 'signin', passkey: p });
     return { ok: accepted(j), done: Array.isArray(j.done) ? j.done.map(String) : localDone() };
   }
@@ -332,6 +336,16 @@ async function recordComplete(t, list) {
 }
 
 /* ---------- sub-tasks: fetched from each task's address ---------- */
+/* a job's reply: its specifics (shown read-only above the checkboxes) and its sub-tasks
+     JSON: {"specifics": "…", "subtasks": [ … ]}  (also "details" or "description"), or a plain list as before
+     plain text: the specifics, a line holding only ---, then one sub-task per line (without ---, every line is a sub-task) */
+function parseJob(raw) {
+  let specifics = '';
+  try { const v = JSON.parse(raw); if (v && !Array.isArray(v) && typeof v === 'object') specifics = String(v.specifics ?? v.details ?? v.description ?? ''); } catch (e) {
+    const m = raw.split(/\r?\n\s*---\s*\r?\n/); if (m.length > 1) { specifics = m[0]; raw = m.slice(1).join('\n'); }
+  }
+  return { specifics: specifics.trim(), list: parseSubtasks(raw) };
+}
 function parseSubtasks(raw) {
   const fromJSON = v => {
     if (Array.isArray(v)) return v.map(x => typeof x === 'string' ? x : (x && (x.text ?? x.name ?? x.title ?? x.task))).filter(x => x != null).map(String);
@@ -342,14 +356,14 @@ function parseSubtasks(raw) {
   if (!list) list = raw.split(/\r?\n/).map(s => s.replace(/^\s*(?:[-*•]|\d+[.)]|\[[ xX]?\])\s*/, ''));
   return list.map(s => s.trim()).filter(Boolean).slice(0, 1000);
 }
-async function fetchSubtasks(t) {
-  if (MOCK) { await new Promise(r => setTimeout(r, 150)); return [1, 2, 3].map(i => `${t.name}: sub-task ${i}`); }
+async function fetchJob(t) {
+  if (MOCK) { await new Promise(r => setTimeout(r, 150)); return { specifics: `${t.name}: the specifics of this job, as the manager has written them.\n\nTest mode shows canned text here. In real use this box holds the job's full instructions: what to check, in what order, safety notes, and whom to call. It scrolls when the text is long, and the worker cannot change it.\n\n1. Read these specifics.\n2. Carry out each sub-task below.\n3. Tick each one as it is done.`, list: [1, 2, 3].map(i => `${t.name}: sub-task ${i}`) }; }
   const headers = CFG.sendPasskey ? { Authorization: 'Bearer ' + passkey } : {};
   const r = await fetch(t.url, { headers, cache: 'no-store' });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  const list = parseSubtasks(await r.text());
-  if (!list.length) throw new Error('the reply held no sub-tasks');
-  return list;
+  const job = parseJob(await r.text());
+  if (!job.list.length) throw new Error('the reply held no sub-tasks');
+  return job;
 }
 
 /* ---------- one task per session: choose it, complete every sub-task, then sign out ---------- */
@@ -357,7 +371,7 @@ const tasks = CFG.tasks || [];
 let cur = null;      // { i, list: [strings], done: [booleans], error, loading }
 function choose(i) {
   cur = { i }; $('#subtasks').dataset.task = '';
-  fetchSubtasks(tasks[i]).then(list => { if (cur && cur.i === i) { cur.list = list; cur.done = list.map(() => false); } })
+  fetchJob(tasks[i]).then(job => { if (cur && cur.i === i) { cur.specifics = job.specifics; cur.list = job.list; cur.done = job.list.map(() => false); } })
     .catch(e => { if (cur && cur.i === i) cur.error = e.message || String(e); }).finally(refresh);
   refresh();
 }
@@ -376,6 +390,8 @@ function showTask() {
   $('#taskPanel').hidden = !cur; if (!cur) return;
   const t = tasks[cur.i];
   $('#taskTitle').textContent = t.name; $('#retryRow').hidden = !cur.error;
+  const sp = !!(cur.list && cur.specifics); $('#specifics').hidden = $('#specLabel').hidden = !sp;
+  if (sp && $('#specifics').value !== cur.specifics) { $('#specifics').value = cur.specifics; $('#specifics').scrollTop = 0; }
   if (cur.error) { $('#subtasks').innerHTML = ''; st($('#tstat'), 'bad', `The sub-tasks could not be loaded (${cur.error}).`); return; }
   if (!cur.list) { $('#subtasks').innerHTML = ''; st($('#tstat'), '', 'Loading sub-tasks…'); return; }
   st($('#tstat'), '', '');
@@ -437,7 +453,7 @@ $('#send').onclick = send;
 $('#message').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
 
 renderMsgs(); if (MOCK) { $('#mock').hidden = false; renderMock(); }
-if (MOCK) st($('#lstat'), 'warn', 'Test mode: canned sub-tasks, no requests are made.' + (CFG.auth && CFG.auth.mode === 'remote' ? ' The passkey is "test-passkey".' : ''));
+if (MOCK) st($('#lstat'), 'warn', 'Test mode: canned sub-tasks, no requests are made.' + (CFG.auth && CFG.auth.mode === 'remote' ? ' The passkey is "123".' : ''));
 
 /* ---------- install: the page opens offline once installed (needs https or localhost) ---------- */
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
@@ -452,7 +468,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 
 /* ---------- build stamp ---------- */
 (() => {
-  const APP_BUILD = '2026.11.24-0043';   // page design build, stamped at each commit
+  const APP_BUILD = '2026.11.24-0048';   // page design build, stamped at each commit
   const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   const slot = document.getElementById('updatedStamp');
   if (slot) slot.textContent = 'Page design build ' + APP_BUILD + (CFG.builder_build ? ' · builder build ' + CFG.builder_build : '') + ' · made ' + show(CFG.made);

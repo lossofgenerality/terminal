@@ -1,3 +1,6 @@
+Complete the dispatch log for the morning collections.
+The log is the blue folder at the dispatch desk. Use a pen, not a pencil, and write the carrier's name in full.
+---
 - Open the dispatch log
 - Enter the morning collections
 - Sign the log

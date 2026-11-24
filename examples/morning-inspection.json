@@ -1,1 +1,4 @@
-["Check the floor is clear", "Inspect the conveyor guard", "Test the emergency stop", "Record the room temperature"]
+{
+  "specifics": "Morning inspection of the packing line, before the first shift starts.\n\nWalk the line from the loading bay to dispatch. Wear high-visibility clothing and safety boots. Do not start the conveyor until the guard and the emergency stop have both been checked.\n\nIf anything fails a check, stop, press nothing else, and message the manager. In an accident, press Emergency.",
+  "subtasks": ["Check the floor is clear", "Inspect the conveyor guard", "Test the emergency stop", "Record the room temperature"]
+}

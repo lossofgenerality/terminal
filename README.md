@@ -18,7 +18,9 @@ At the top right of the page is the **Emergency** button, styled as a red emerge
 
 Under the sign-in box is the red line *Warning: Unauthorized Access Forbidden*.
 
-Choosing a job fetches its address; the reply is laid out as a vertical list of sub-tasks, each with a checkbox marking it complete. The reply may be a JSON list of strings, a JSON object holding such a list under `subtasks`, `items`, `tasks`, `list` or `data` (its entries may also be objects with `text`, `name` or `title`), or plain text with one sub-task per line (leading `-`, `*`, `1.` or `[ ]` are removed). The addresses must allow cross-origin requests (CORS) from wherever the page is served.
+Choosing a job fetches its address. The job's **specifics** appear in a read-only, scrollable box; under it, the sub-tasks are laid out as a vertical list, each with an unticked checkbox on the left and its short text on the right. The worker ticks each one as it is done. Specifics are optional: without them the box is not shown.
+
+The reply may be a JSON object `{"specifics": "…", "subtasks": [ … ]}` (`details` or `description` also serve for the specifics), or plain text: the specifics, a line holding only `---`, then one sub-task per line. For the sub-tasks alone, the reply may also be a JSON list of strings, a JSON object holding such a list under `subtasks`, `items`, `tasks`, `list` or `data` (its entries may also be objects with `text`, `name` or `title`), or plain text with one sub-task per line (leading `-`, `*`, `1.` or `[ ]` are removed). The addresses must allow cross-origin requests (CORS) from wherever the page is served.
 
 ## Using the builder
 
@@ -56,7 +58,7 @@ Laid out as the witness pages in `lossofgenerality/eye-witness` are: `<folder>/<
 
 ## Test mode
 
-Add `?mock=1` to a terminal page's address: canned sub-tasks, no requests. With a passkey service, the test passkey is `test-passkey`. A dashed panel then plays the manager's side: open, reply to and mark handled messages and emergencies, or make the next send fail.
+Add `?mock=1` to a terminal page's address: canned sub-tasks, no requests. With a passkey service, the test passkey is `123`. A dashed panel then plays the manager's side: open, reply to and mark handled messages and emergencies, or make the next send fail.
 
 ## Files
 
