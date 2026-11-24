@@ -8,7 +8,7 @@ Builder: https://lossofgenerality.github.io/terminal/ (once GitHub Pages is swit
 
 From the top:
 
-1. **The app's name**, with **Install app** under it and the **Emergency** button at the top right.
+1. **The client's logo** (if one was chosen in the builder) and **the app's name**, with **Install app** under it and the **Emergency** button at the top right.
 2. **Job**, directly under the name: a pulldown of the jobs not yet done. It appears only once the passkey is accepted, and is fixed once the first sub-task is ticked.
 3. **Sign in** — a box reading *Enter passkey*; Enter or the button signs in.
 4. **Sign out** — disabled until every sub-task of the chosen job is ticked. Pressing it opens an **ARE YOU SURE?** window; *Yes, sign out* then records the job as done; if it cannot be recorded, the person stays signed in and may try again. When every job is done, the pulldown says so and sign-out is open.
@@ -20,7 +20,7 @@ At the top right of the page is the **Emergency** button, styled as a red emerge
 
 Under the sign-in box is the red line *Warning: Unauthorized Access Forbidden*.
 
-Choosing a job fetches its address. The job's **specifics** appear in a read-only, scrollable box; under it, the sub-tasks are laid out as a vertical list, each with an unticked checkbox on the left and, to its right, the sub-task's **ID number** followed by its short text. The worker ticks each one as it is done. Specifics are optional: without them the box is not shown.
+Choosing a job fetches its address. The job's **specifics** appear in a read-only, scrollable box, with the formatting written in the job-authoring tool (`**bold**`, `*italic*`, `[red]…[/red]` in red, amber, green or blue, and `- ` bullet points); under it, the sub-tasks are laid out as a vertical list, each with an unticked checkbox on the left and, to its right, the sub-task's **ID number** followed by its short text. The worker ticks each one as it is done. Specifics are optional: without them the box is not shown.
 
 The reply may be a JSON object `{"specifics": "…", "subtasks": [ … ]}` (`details` or `description` also serve for the specifics), or plain text: the specifics, a line holding only `---`, then one sub-task per line. A sub-task's ID comes with it: in JSON as an object `{"id": "MI-01", "text": "…"}` (`number` or `no` also serve), in plain text as `MI-01 | text`. A sub-task without an ID is numbered by its place in the list (1, 2, 3 …). For the sub-tasks alone, the reply may also be a JSON list of strings, a JSON object holding such a list under `subtasks`, `items`, `tasks`, `list` or `data` (its entries may also be objects with `text`, `name` or `title`), or plain text with one sub-task per line (leading `-`, `*`, `1.` or `[ ]` are removed). The addresses must allow cross-origin requests (CORS) from wherever the page is served.
 
@@ -49,6 +49,18 @@ The page POSTs JSON to the service's address twice per session (`page` is the in
 
 Every request also carries `station`, the installation's ID (empty if none was given). `conv` is the device's conversation id, kept in the browser. Statuses are `delivered`, `opened` and `handled`. Messages and emergencies need no passkey: anyone may send. `done` lists the jobs already completed, which the pulldown leaves out. If the service omits `done`, the page falls back to what this browser remembers. The service is yet to be written; a Wolfram Cloud APIFunction is the natural home for it.
 
+## The job-authoring tool (`author/`)
+
+Jobs are written in the authoring tool and kept by the service in the Wolfram Cloud. The terminal page receives the list of jobs at sign-in and fetches a job's contents when it is chosen (being built). The tool speaks to the service with its own key, so that workers cannot change jobs:
+
+| The tool sends | The service replies |
+|---|---|
+| `{"action": "listJobs", "authorKey": …}` | `{"ok": true, "jobs": [{"id", "name"}]}` |
+| `{"action": "getJob", "authorKey": …, "id": …}` | `{"ok": true, "job": {"id", "name", "specifics", "subtasks": [{"id", "text"}]}}` |
+| `{"action": "saveJob", "authorKey": …, "job": {…}, "was": "old ID"}` | `{"ok": true}` |
+
+The service's address is given as `?svc=https://…`; without it, or with `?mock=1`, the tool runs in test mode. Attachments are planned for a later version.
+
 ## An instance
 
 Laid out as the witness pages in `lossofgenerality/eye-witness` are: `<folder>/<app>-<YYYYMMDD-HHMM>/` (UTC), holding
@@ -68,6 +80,7 @@ Add `?mock=1` to a terminal page's address: canned sub-tasks, no requests. With 
 - `terminal-template.html` — the terminal page it fills in
 - `icons/` — the icons placed in each instance
 - `examples/` — sub-task lists used by the builder's example
+- `author/` — the **job-authoring tool**: write each job's specifics (with **B**, *I*, four colours and bullet points) and its sub-tasks with IDs, previewed as the terminal shows them, and save them to the service. Test mode keeps the jobs in the browser (author key `123`): https://lossofgenerality.github.io/terminal/author/?mock=1
 - `demo/` — a terminal page built by the builder, in test mode (passkey `123`): https://lossofgenerality.github.io/terminal/demo/
 - `tests/` — end-to-end checks in a headless browser, with a stand-in passkey service (see `tests/README.md`)
 

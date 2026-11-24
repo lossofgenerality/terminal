@@ -55,7 +55,8 @@ async def main():
         # signed in: the task travels with the message
         await pg.fill('#passkey', '123'); await pg.press('#passkey', 'Enter'); await pg.wait_for_selector('#taskBar:not([hidden])')
         await pg.select_option('#task', '0'); await pg.wait_for_selector('#subtasks li')
-        ok('test-mode specifics shown above the checkboxes', await pg.is_visible('#specifics') and 'specifics of this job' in await pg.input_value('#specifics'))
+        ok('test-mode specifics shown above the checkboxes', await pg.is_visible('#specifics') and 'specifics of this job' in await pg.inner_text('#specifics'))
+        ok('specifics drawn with their formatting', await pg.eval_on_selector('#specifics', 'e=>!!e.querySelector("b") && !!e.querySelector("i") && !!e.querySelector(".c-red") && !!e.querySelector("ul li")'))
         await pg.fill('#message', 'Come see me ASAP'); await pg.click('#send'); await pg.wait_for_timeout(700)
         ok('signed-in message carries the task', 'job: Morning inspection' in await pg.inner_text('#mockRows'))
         bx = await pg.query_selector_all('#subtasks input')

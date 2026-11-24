@@ -46,11 +46,13 @@ async def main():
             await pg.check('input[name=authMode][value=hash]'); await pg.fill('#appName','Packing Station — Daily Checks'); await pg.fill('#pk1','correct-horse'); await pg.fill('#pk2','correct-hors'); await pg.click('#build')
             await pg.wait_for_selector('#errs:not([hidden])'); ok('passkey mismatch caught', 'differ' in await pg.inner_text('#errs'))
             # ---- A: in-page check ----
+            await pg.set_input_files('#logoFile', os.path.join(ROOT,'icons','icon-192.png')); await pg.wait_for_selector('#logoPv:not([hidden])')
             await build(pg,'hash','correct-horse','Packing Station — Daily Checks')
             ok('instance folder name', 'sfx-ray/packing-station-daily-checks-2026' in await pg.inner_text('#where'))
             z,root=await zip_of(pg); names=z.namelist()
             want=['index.html','README.md','notes.md','terminal-data.json','manifest.webmanifest','sw.js']+['icons/'+n for n in ['icon-192.png','icon-512.png','icon-maskable-512.png','apple-touch-icon.png','favicon-32.png']]
             ok('zip has eye-witness file set', all(root+w in names for w in want) and z.testzip() is None)
+            ok('logo built into the page', 'data:image/png;base64,' in z.read(root+'index.html').decode())
             ok('passkey nowhere in the zip', all('correct-horse' not in z.read(n).decode('utf-8','ignore') for n in names))
             json.loads(z.read(root+'manifest.webmanifest')); cfg=json.loads(z.read(root+'terminal-data.json'))['data']
             ok('data json: tasks, hash, no logoutRule', len(cfg['tasks'])==3 and len(cfg['auth']['hash'])==64 and 'logoutRule' not in cfg)
@@ -58,6 +60,7 @@ async def main():
             z.extractall(SRV+'/out')
             t=await ctx.new_page(); t.on('pageerror', lambda e: errs.append(str(e))); await t.goto(U+'/out/'+root+'index.html')
             ok('tasks hidden before sign-in', await t.is_hidden('#taskBar') and await t.is_hidden('#logoutPanel'))
+            ok('logo shown beside the title', await t.is_visible('#logo') and (await t.eval_on_selector('#logo','i=>i.naturalWidth'))>0)
             ok('passkey placeholder', await t.get_attribute('#passkey','placeholder')=='Enter passkey')
             await t.fill('#passkey','wrong-one'); await t.press('#passkey','Enter'); await t.wait_for_function("document.querySelector('#lstat').textContent.includes('not accepted')")
             ok('wrong passkey refused', await t.is_hidden('#taskBar'))
@@ -65,7 +68,7 @@ async def main():
             ok('sign-out disabled before choosing', await t.is_disabled('#logout'))
             await t.select_option('#task','0'); await t.wait_for_selector('#subtasks li')
             ok('may change task before ticking', await t.is_enabled('#task'))
-            ok('JSON sub-task IDs shown before the text', (await t.inner_text('#subtasks li:first-child')).strip().startswith('MI-01')); ok('JSON specifics shown, read-only', 'safety boots' in await t.input_value('#specifics') and await t.get_attribute('#specifics','readonly') is not None and await t.is_visible('#specifics'))
+            ok('JSON sub-task IDs shown before the text', (await t.inner_text('#subtasks li:first-child')).strip().startswith('MI-01')); ok('JSON specifics shown, read-only', 'safety boots' in await t.inner_text('#specifics') and await t.eval_on_selector('#specifics','e=>e.tagName')=='DIV' and not await t.eval_on_selector('#specifics','e=>e.isContentEditable') and await t.is_visible('#specifics'))
             await tick_all(t, leave=1); ok('task fixed after first tick', await t.is_disabled('#task'))
             ok('sign-out disabled with one left', await t.is_disabled('#logout'))
             await tick_all(t); ok('sign-out enabled when the task is complete', await t.is_enabled('#logout'))
@@ -77,7 +80,7 @@ async def main():
             await t.select_option('#task', label='Label printer'); await t.wait_for_selector('#subtasks li'); ok('object list parsed', 'Clean the print head' in await t.inner_text('#subtasks')); ok('no specifics: box hidden', await t.is_hidden('#specifics')); ok('no IDs given: numbered 1, 2, 3', [ (await x.inner_text()).strip() for x in await t.query_selector_all('#subtasks .sid') ]==['1','2','3'])
             await tick_all(t); await signout(t); await t.wait_for_selector('#loginPanel:not([hidden])')
             await signin(t,'correct-horse'); await t.select_option('#task', label='Dispatch log'); await t.wait_for_selector('#subtasks li')
-            ok('plain-text IDs before the bar', [ (await x.inner_text()).strip() for x in await t.query_selector_all('#subtasks .sid') ]==['DL-01','DL-02','DL-03']); ok('plain-text list parsed, specifics split at ---', 'Sign the log' in await t.inner_text('#subtasks') and 'blue folder' in await t.input_value('#specifics') and 'blue folder' not in await t.inner_text('#subtasks') and len(await t.query_selector_all('#subtasks li'))==3); await tick_all(t); await signout(t); await t.wait_for_selector('#loginPanel:not([hidden])')
+            ok('plain-text IDs before the bar', [ (await x.inner_text()).strip() for x in await t.query_selector_all('#subtasks .sid') ]==['DL-01','DL-02','DL-03']); ok('plain-text list parsed, specifics split at ---', 'Sign the log' in await t.inner_text('#subtasks') and 'blue folder' in await t.inner_text('#specifics') and 'blue folder' not in await t.inner_text('#subtasks') and len(await t.query_selector_all('#subtasks li'))==3); await tick_all(t); await signout(t); await t.wait_for_selector('#loginPanel:not([hidden])')
             await signin(t,'correct-horse'); ok('all done: none offered, sign-out open', await opts(t)==[] and await t.is_enabled('#logout') and 'Every job is complete' in await t.inner_text('#logoutWhy'))
             ok('footer stamp on instance', 'builder build 2026.' in await t.inner_text('#updatedStamp'))
             # ---- B: the separate service ----

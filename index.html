@@ -40,6 +40,8 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
       <div><label class="f" for="shortName">Short name, for the installed app (optional)</label><input id="shortName" type="text" maxlength="30" placeholder="e.g. Daily Checks"></div>
       <div><label class="f" for="folder">Folder, for instance a customer (optional: lower-case letters, digits, dashes)</label><input id="folder" type="text" maxlength="40" spellcheck="false" placeholder="e.g. sfx-ray"></div>
     </div>
+    <label class="f" for="logoFile">Client's logo (optional: PNG, JPEG, WebP, GIF or SVG, up to 300 KB), shown beside the title</label>
+    <div class="inline" style="margin-top:0"><input type="file" id="logoFile" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"><img id="logoPv" alt="" hidden style="max-height:44px; max-width:140px; border:1px solid var(--line); border-radius:6px; padding:3px; background:#fff"><button class="b" id="logoClear" hidden>Remove the logo</button><span class="st" id="logoStat"></span></div>
     <div class="inline"><button class="b" id="example">Fill in an example</button><button class="b" id="loadSpec">Load a specification…</button><input type="file" id="specFile" accept="application/json,.json" hidden><span class="st" id="specStat"></span></div>
   </section>
 
@@ -84,11 +86,19 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
 
 <script>
 'use strict';
-const APP_BUILD = '2026.11.24-0043';   // build number, stamped at each commit
+const APP_BUILD = '2026.11.24-0110';   // build number, stamped at each commit
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 const st = (el, cls, text) => { el.className = 'st ' + (cls || ''); el.textContent = text || ''; };
-let keptAuth = null, built = null;
+let keptAuth = null, built = null, logo = '';
+function showLogo() { $('#logoPv').hidden = $('#logoClear').hidden = !logo; if (logo) $('#logoPv').src = logo; }
+$('#logoFile').onchange = () => {
+  const f = $('#logoFile').files[0]; if (!f) return;
+  if (!/^image\/(png|jpeg|webp|gif|svg\+xml)$/.test(f.type)) { st($('#logoStat'), 'bad', 'Choose a PNG, JPEG, WebP, GIF or SVG image.'); $('#logoFile').value = ''; return; }
+  if (f.size > 300 * 1024) { st($('#logoStat'), 'bad', `The image is ${(f.size / 1024).toFixed(0)} KB; please keep it under 300 KB.`); $('#logoFile').value = ''; return; }
+  const r = new FileReader(); r.onload = () => { logo = r.result; showLogo(); st($('#logoStat'), 'ok', f.name); }; r.readAsDataURL(f);
+};
+$('#logoClear').onclick = () => { logo = ''; $('#logoFile').value = ''; showLogo(); st($('#logoStat'), '', ''); };
 
 /* ---------- reading the form ---------- */
 const slug = s => s.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '');
@@ -167,12 +177,12 @@ async function makeSpec() {
     const u = $('#authUrl').value.trim(), pr = addressProblem(u);
     if (pr || !/^https?:\/\//.test(u)) errs.push('The passkey service needs a full http or https address.'); else auth = { mode: 'remote', url: u };
   }
-  return { errs, spec: { kind: 'ccn-terminal', appName, shortName: $('#shortName').value.trim() || appName.slice(0, 30), folder, tasks: tasks.map(t => ({ name: t.name, url: t.url })), source: { tasks: $('#tasks').value, pattern: $('#pattern').value.trim() },
+  return { errs, spec: { kind: 'ccn-terminal', appName, logo, shortName: $('#shortName').value.trim() || appName.slice(0, 30), folder, tasks: tasks.map(t => ({ name: t.name, url: t.url })), source: { tasks: $('#tasks').value, pattern: $('#pattern').value.trim() },
     auth, sendPasskey: $('#sendPasskey').checked } };
 }
 function applySpec(s) {
   if (!s || s.kind !== 'ccn-terminal') throw new Error('This is not a Terminal specification.');
-  $('#appName').value = s.appName || ''; $('#shortName').value = s.shortName || ''; $('#folder').value = s.folder || '';
+  $('#appName').value = s.appName || ''; logo = typeof s.logo === 'string' && /^data:image\//.test(s.logo) ? s.logo : ''; showLogo(); $('#shortName').value = s.shortName || ''; $('#folder').value = s.folder || '';
   $('#tasks').value = s.source ? s.source.tasks : (s.tasks || []).map(t => `${t.name} | ${t.url}`).join('\n');
   $('#pattern').value = s.source ? s.source.pattern || '' : '';
   $('#sendPasskey').checked = !!s.sendPasskey;
@@ -191,7 +201,7 @@ async function template() {
   return TPL = await r.text();
 }
 function fillTemplate(tpl, spec, opts) {
-  const cfg = { id: opts.id, made: opts.made, appName: spec.appName, short: spec.shortName, tasks: spec.tasks, auth: spec.auth, sendPasskey: spec.sendPasskey, builder_build: APP_BUILD };
+  const cfg = { id: opts.id, made: opts.made, appName: spec.appName, short: spec.shortName, ...(spec.logo ? { logo: spec.logo } : {}), tasks: spec.tasks, auth: spec.auth, sendPasskey: spec.sendPasskey, builder_build: APP_BUILD };
   if (opts.mock) cfg.mock = true;
   const json = JSON.stringify(cfg).replace(/</g, '\\u003c');
   return { cfg, page: tpl.split('__APP_NAME__').join(esc(spec.appName)).replace('__CONFIG__', () => json) };
@@ -294,7 +304,7 @@ function makeZip(files) {      // files: [{name, data: Uint8Array}], stored with
 
 /* freshness: when this copy was last updated, and a reload offer when a newer copy is online */
 (() => {
-  const UPDATED = '2026-11-24T00:43:00Z';
+  const UPDATED = '2026-11-24T01:10:00Z';
   const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   const PUBLISHED = /^https?:/.test(location.protocol) && !isNaN(Date.parse(document.lastModified)) ? document.lastModified : UPDATED;
   const slot = document.getElementById('updatedStamp'); if (slot) slot.textContent = 'Build ' + APP_BUILD + ' · Updated ' + show(PUBLISHED);

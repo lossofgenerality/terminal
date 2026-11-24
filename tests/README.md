@@ -9,6 +9,8 @@ End-to-end checks of the builder and the terminal pages it makes, in a headless 
 
 `messaging.py` checks, in test mode, the messages and the Emergency button: each colour of status, replies, a failed send and *Send again*, the automatic retry of an emergency, that a second press raises no second emergency, and that the Emergency button can be pressed while the ARE YOU SURE? window is open.
 
+`author.py` checks the job-authoring tool in test mode: sign-in, the toolbar (B, I, colours, Ctrl+I), the preview and its escaping of HTML, sub-task IDs and reordering, the checks before saving, and saving and reopening (`18/18 passed`).
+
 ## Running them
 
 ```
@@ -16,9 +18,10 @@ pip install playwright
 playwright install chromium
 python3 -I tests/e2e.py
 python3 -I tests/messaging.py
+python3 -I tests/author.py
 ```
 
-To use an installed Chrome instead, set `CHROME` to its path. The tests serve a copy of the repository at `http://localhost:8765` and print `38/38 passed` when all is well; `messaging.py` prints `24/24 passed`.
+To use an installed Chrome instead, set `CHROME` to its path. The tests serve a copy of the repository at `http://localhost:8765` and print `40/40 passed` when all is well; `messaging.py` prints `25/25 passed`.
 
 ---
 © Computational Classnotes · CC BY-NC-SA 4.0

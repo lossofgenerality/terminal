@@ -64,8 +64,11 @@ h1 { font-size:22px; margin:4px 0 0 }
 #sure .box { background:var(--panel); border-radius:12px; padding:20px 22px; max-width:380px; width:100%; box-shadow:0 10px 40px rgba(0,0,0,.3); text-align:center }
 #sure h2 { margin:0 0 8px; font-size:20px; letter-spacing:.02em } #sure p { margin:0 0 16px; color:var(--mute); font-size:14px }
 #sure .row { justify-content:center }
-#specifics { width:100%; font:inherit; font-size:14px; line-height:1.5; padding:9px 11px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--ink); resize:vertical; max-height:50vh; overflow:auto; margin:0 0 12px; white-space:pre-wrap }
+#specifics { font-size:14px; line-height:1.55; padding:9px 11px; border:1px solid var(--line); border-radius:8px; background:var(--panel); max-height:45vh; overflow:auto; margin:0 0 12px }
 #specifics:focus { outline:2px solid var(--accent); outline-offset:1px }
+.spec p { margin:0 0 .6em } .spec p:last-child { margin-bottom:0 } .spec ul { margin:0 0 .6em; padding-left:1.3em }
+.c-red { color:#dc2626 } .c-amber { color:#d97706 } .c-green { color:#16a34a } .c-blue { color:#2563eb }
+#logo { max-height:64px; max-width:180px; object-fit:contain; display:block; margin-bottom:6px }
 .sid { display:inline-block; font:600 12.5px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:var(--accent); background:var(--accent-soft); padding:1px 6px; border-radius:5px; margin-right:4px; white-space:nowrap }
 #subtasks li input:checked + span .sid { text-decoration:none; opacity:.7 }
 #installMsg { margin-top:8px; max-width:520px; font-size:12.5px; background:var(--accent-soft); border:1px solid var(--accent); border-radius:8px; padding:6px 10px }
@@ -76,7 +79,7 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
 <body>
 <main>
   <header class="row" style="justify-content:space-between; align-items:center">
-    <div><h1 id="appName">__APP_NAME__</h1>
+    <div><img id="logo" alt="" hidden><h1 id="appName">__APP_NAME__</h1>
       <button class="b p" id="installBtn" style="margin-top:8px; font-size:13px; padding:6px 12px" title="Install this page as an app on this computer, tablet or phone">Install app</button>
       <div id="installMsg" role="status" hidden></div></div>
     <button class="estop" id="emergency" aria-label="Emergency: press to start the emergency protocol"><span>Emergency</span></button>
@@ -109,7 +112,7 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
   <section class="panel" id="taskPanel" hidden>
     <h2 id="taskTitle">Sub-tasks</h2>
     <label class="f" for="specifics" id="specLabel" hidden>Job specifics</label>
-    <textarea id="specifics" readonly hidden rows="7" aria-label="Job specifics"></textarea>
+    <div id="specifics" class="spec" hidden role="document" aria-label="Job specifics" tabindex="0"></div>
     <ul id="subtasks"></ul>
     <div class="st" id="tstat"></div>
     <div class="row" id="retryRow" hidden><button class="b" id="retry">Try again</button></div>
@@ -359,6 +362,26 @@ function parseJob(raw) {
   }
   return { specifics: specifics.trim(), list: parseSubtasks(raw) };
 }
+/* the job specifics' mini markup, the same rules as the job-authoring tool:
+     **bold**  *italic*  [red]…[/red] (red, amber, green, blue)  "- " starts a bullet; a blank line starts a paragraph
+   everything is escaped first, so the text can never carry HTML or script */
+function renderSpec(src) {
+  const inline = t => esc(t)
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/(^|[^*])\*(?!\s)(.+?)\*(?!\*)/g, '$1<i>$2</i>')
+    .replace(/\[(red|amber|green|blue)\]([\s\S]*?)\[\/\1\]/g, '<span class="c-$1">$2</span>');
+  const out = []; let para = [], list = [];
+  const flushP = () => { if (para.length) out.push('<p>' + para.map(inline).join('<br>') + '</p>'); para = []; };
+  const flushL = () => { if (list.length) out.push('<ul>' + list.map(x => '<li>' + inline(x) + '</li>').join('') + '</ul>'); list = []; };
+  for (const line of String(src || '').replace(/\r/g, '').split('\n')) {
+    if (/^\s*[-•]\s+/.test(line)) { flushP(); list.push(line.replace(/^\s*[-•]\s+/, '')); }
+    else if (!line.trim()) { flushP(); flushL(); }
+    else { flushL(); para.push(line); }
+  }
+  flushP(); flushL();
+  return out.join('');
+}
+
 /* sub-tasks: each has an ID number shown before its text
      JSON: strings, or objects {"id": "T-104", "text": "…"} (also number/no, and name/title for the text)
      plain text: "T-104 | text" per line, or the text alone
@@ -376,7 +399,7 @@ function parseSubtasks(raw) {
   return list.map((x, k) => ({ id: x.id || String(k + 1), text: x.text }));
 }
 async function fetchJob(t) {
-  if (MOCK) { await new Promise(r => setTimeout(r, 150)); return { specifics: `${t.name}: the specifics of this job, as the manager has written them.\n\nTest mode shows canned text here. In real use this box holds the job's full instructions: what to check, in what order, safety notes, and whom to call. It scrolls when the text is long, and the worker cannot change it.\n\n1. Read these specifics.\n2. Carry out each sub-task below.\n3. Tick each one as it is done.`, list: [1, 2, 3].map(i => ({ id: 'T-' + (100 + i), text: `${t.name}: sub-task ${i}` })) }; }
+  if (MOCK) { await new Promise(r => setTimeout(r, 150)); return { specifics: `**${t.name}**: the specifics of this job, as written in the job-authoring tool.\n\nTest mode shows canned text here. In real use this box holds the job's full instructions: what to check, in what order, safety notes, and whom to call. It scrolls when the text is long, and the worker cannot change it.\n\n[red]**Wear safety boots.**[/red] *Report anything unusual.*\n\n- Read these specifics.\n- Carry out each sub-task below.\n- [green]Tick each one[/green] as it is done.`, list: [1, 2, 3].map(i => ({ id: 'T-' + (100 + i), text: `${t.name}: sub-task ${i}` })) }; }
   const headers = CFG.sendPasskey ? { Authorization: 'Bearer ' + passkey } : {};
   const r = await fetch(t.url, { headers, cache: 'no-store' });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -410,7 +433,7 @@ function showTask() {
   const t = tasks[cur.i];
   $('#taskTitle').textContent = t.name; $('#retryRow').hidden = !cur.error;
   const sp = !!(cur.list && cur.specifics); $('#specifics').hidden = $('#specLabel').hidden = !sp;
-  if (sp && $('#specifics').value !== cur.specifics) { $('#specifics').value = cur.specifics; $('#specifics').scrollTop = 0; }
+  if (sp && $('#specifics').dataset.src !== cur.specifics) { $('#specifics').dataset.src = cur.specifics; $('#specifics').innerHTML = renderSpec(cur.specifics); $('#specifics').scrollTop = 0; }
   if (cur.error) { $('#subtasks').innerHTML = ''; st($('#tstat'), 'bad', `The sub-tasks could not be loaded (${cur.error}).`); return; }
   if (!cur.list) { $('#subtasks').innerHTML = ''; st($('#tstat'), '', 'Loading sub-tasks…'); return; }
   st($('#tstat'), '', '');
@@ -496,6 +519,8 @@ function askStation(then) {      // then(name) runs inside the press of Install,
 }
 $('#stationIn').addEventListener('keydown', e => { if (e.key === 'Enter') $('#nameYes').click(); if (e.key === 'Escape') $('#nameNo').click(); });
 showStation();
+/* the client's logo, from the builder (later from the admin tool's account) */
+if (CFG.logo && /^(data:image\/(png|jpeg|gif|webp|svg\+xml);base64,|icons\/|https:\/\/)/.test(CFG.logo)) { $('#logo').src = CFG.logo; $('#logo').alt = CFG.appName + ' logo'; $('#logo').hidden = false; }
 
 /* ---------- install: the page opens offline once installed (needs https or localhost) ---------- */
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
@@ -535,7 +560,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 
 /* ---------- build stamp ---------- */
 (() => {
-  const APP_BUILD = '2026.11.24-0100';   // page design build, stamped at each commit
+  const APP_BUILD = '2026.11.24-0110';   // page design build, stamped at each commit
   const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   const slot = document.getElementById('updatedStamp');
   if (slot) slot.textContent = 'Page design build ' + APP_BUILD + (CFG.builder_build ? ' · builder build ' + CFG.builder_build : '') + ' · made ' + show(CFG.made);
