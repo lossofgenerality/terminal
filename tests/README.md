@@ -9,7 +9,7 @@ End-to-end checks of the builder and the terminal pages it makes, in a headless 
 
 `messaging.py` checks, in test mode, the messages and the Emergency button: each colour of status, replies, a failed send and *Send again*, the automatic retry of an emergency, that a second press raises no second emergency, and that the Emergency button can be pressed while the ARE YOU SURE? window is open.
 
-`author.py` checks the job-authoring tool in test mode: sign-in, the toolbar (B, I, colours, Ctrl+I), the preview and its escaping of HTML, sub-task IDs and reordering, the checks before saving, and saving and reopening (`18/18 passed`).
+`author.py` checks the job-authoring tool in test mode: sign-in, the toolbar (B, I, colours, Ctrl+I), the preview and its escaping of HTML, sub-task IDs and reordering, the checks before saving, and saving and reopening (`19/19 passed`).
 
 ## Running them
 

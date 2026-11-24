@@ -40,6 +40,7 @@ async def main():
         await pg.fill('.sub-row:first-child .id', ''); await pg.fill('.sub-row:last-child .id', ''); await pg.fill('#jobId', 'mi'); await pg.click('#save')
         await pg.wait_for_selector('#errs:not([hidden])'); ok('a job ID already in use refused', 'already has the ID' in await pg.inner_text('#errs'))
         await pg.fill('#jobId', 'DL'); await pg.click('#save'); await pg.wait_for_function("document.querySelector('#estat').textContent.startsWith('Saved')")
+        ok('test mode says the job stayed in this browser', 'this browser only' in await pg.inner_text('#estat') and 'test mode' in await pg.inner_text('#save'))
         ok('saved, listed, no longer marked unsaved', 'Dispatch log' in await pg.inner_text('#jobs') and await pg.is_hidden('#dirty'))
         await pg.reload(); await pg.fill('#key', '123'); await pg.press('#key', 'Enter'); await pg.wait_for_selector('#work:not([hidden])')
         await pg.click('#jobs button:has-text("Dispatch log")'); await pg.wait_for_function("document.querySelector('#jobId').value==='DL'")
