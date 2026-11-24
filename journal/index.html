@@ -128,7 +128,7 @@ footer{margin-top:34px;font-size:12px;color:#6B7A88}
    Source: the fake sample (sample-data.json) by default; ?source=service reads the service with a manager key
    (the service's Journal actions come with the next ff_terminal release; see SPEC.md).
    © Computational Classnotes · CC BY-NC-SA 4.0 */
-const APP_BUILD = '2026.11.24-0600';
+const APP_BUILD = '2026.11.24-0620';
 const SERVICE = 'https://www.wolframcloud.com/obj/ccn2/TerminalKernel';
 const Q = new URLSearchParams(location.search);
 const SOURCE = Q.get('source') === 'service' ? 'service' : 'sample';
@@ -180,7 +180,7 @@ function index(data) {
   for (const x of steps) if (x.checked) (bySub[x.job + '|' + x.sub] ||= []).push(x.dur);
   const usual = {}; for (const k in bySub) usual[k] = median(bySub[k]);
   for (const x of steps) x.ratio = x.dur / (usual[x.job + '|' + x.sub] || x.dur);
-  const dates = [...new Set(E.map(e => e.date))].sort();
+  const dates = [...new Set(E.map(e => e.date))].sort(); if (!dates.length) dates.push(local(Date.now()).date);
   return { ...data, E, sessions, steps, refused, messages, emergencies, usual, dates };
 }
 
@@ -488,11 +488,32 @@ async function load() {
     const data = await r.json(); D = index(data); D.sampleGroups = data.groups; return;
   }
   if (!managerToken) throw new Error('signin');
-  const to = local(Date.now()).date, from = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
-  const j = await svc({ action: 'journal', from, to }); if (!j.ok) throw new Error(j.message || 'the service refused');
-  const data = { meta: { events: j.events.length, from, to }, tables: j.tables, workers: j.workers, jobs: j.jobs, groups: j.groups || [], events: j.events };
-  D = index(data); D.sampleGroups = data.groups;
+  /* the service answers one day at a time (a past day is one object there); the first load reads DAYS days,
+     and each refresh reads only today's clicks after the last one seen. Clicks are merged by their id. */
+  const today = local(Date.now()).date;
+  if (!RAW.meta) {
+    const days = Array.from({ length: DAYS }, (_, i) => new Date(Date.parse(today + 'T12:00:00Z') - i * 864e5).toISOString().slice(0, 10));
+    for (let i = 0; i < days.length; i++) {
+      const app = $('#app'); if (app && !D) app.innerHTML = `<div class="kick">Reading the history from the service… ${i + 1} of ${days.length} days</div>`;
+      const j = await svc({ action: 'journal', day: days[i], ...(i === 0 ? { meta: true } : {}) }); if (!j.ok) throw new Error(j.message || 'the service refused');
+      if (i === 0) RAW.meta = { workers: j.workers || [], jobs: j.jobs || {}, groups: j.groups || [] };
+      for (const e of j.events || []) RAW.events.set(e.id || (e.time + e.action + e.station), e);
+    }
+  } else {
+    const last = [...RAW.events.values()].filter(e => e.time.slice(0, 10) === today).map(e => (e.id || '').split('/')[1] || '').sort().pop();
+    const j = await svc({ action: 'journal', day: today, ...(last ? { after: last.slice(0, 6) } : {}) }); if (!j.ok) throw new Error(j.message || 'the service refused');
+    for (const e of j.events || []) RAW.events.set(e.id || (e.time + e.action + e.station), e);
+  }
+  const events = [...RAW.events.values()].filter(e => e.station);
+  const stations = [...new Set(events.map(e => e.station))].sort();
+  const workers = [...new Set([...RAW.meta.workers, ...events.map(e => e.worker).filter(Boolean)])].sort();
+  const dates = [...new Set(events.map(e => e.time.slice(0, 10)))].sort();
+  const groupsNow = D && D.groups ? D.groups : RAW.meta.groups;
+  const data = { meta: { events: events.length, from: dates[0] || today, to: dates[dates.length - 1] || today }, tables: stations.map(id => ({ id })), workers, jobs: RAW.meta.jobs, groups: groupsNow, events };
+  D = index(data); D.sampleGroups = RAW.meta.groups;
 }
+const DAYS = Math.max(1, Math.min(60, +(Q.get('days') || 14)));
+const RAW = { meta: null, events: new Map() };
 function signinView(msg) {
   $('#app').innerHTML = `<div class="card signin"><h2>Journal sign-in</h2><div class="sub" style="margin:6px 0 16px">Managers only. The key is sent once; the session that follows uses a token.</div><form id="mform"><label for="mkey" style="display:block;font-size:12px;color:var(--dim);margin-bottom:6px">Manager key</label><input id="mkey" type="password" autocomplete="current-password" style="width:100%"><div style="color:#FCA5A5;font-size:13px;margin-top:8px">Warning: Unauthorized Access Forbidden</div><div class="sub" id="mstat" role="status" style="margin-top:8px">${esc(msg || '')}</div><button class="btn primary" style="margin-top:14px">Sign in</button></form></div>`;
   $('#mform').onsubmit = async e => { e.preventDefault(); const k = $('#mkey').value.trim().replace(/^(["'`“”‘’])([\s\S]*)\1$|^["'`“”‘’]([\s\S]*)["'`“”‘’]$/, '$2$3').trim(); $('#mstat').textContent = 'Checking…';

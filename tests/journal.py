@@ -111,6 +111,32 @@ async def main():
             await sv.goto(U + '?source=service'); await sv.wait_for_selector('#mkey')
             await sv.fill('#mkey', '"secret"'); await sv.click('#mform button'); await sv.wait_for_function("document.querySelector('#mstat').textContent.includes('next ff_terminal release')")
             ok('service mode: manager sign-in, and a clear note while the service has no Journal', True)
+            # service mode against a stand-in that answers as ff_terminal does: manager key once, then a token; one day at a time
+            import base64, urllib.parse
+            byday = {}
+            for k, e in enumerate(E): byday.setdefault(e['time'][:10], []).append({**e, 'id': e['time'][:10] + '/' + e['time'][11:19].replace(':', '') + '-%06d' % k})
+            seen = []
+            async def answer(route):
+                req = json.loads(base64.b64decode(urllib.parse.parse_qs(route.request.post_data)['payload_b64'][0]).decode('utf-8')); seen.append(req)
+                if req['action'] == 'managerSignin': out = {'ok': True, 'token': 'b' * 64} if req.get('managerKey') == 'boss-key' else {'ok': False, 'message': 'The manager key was not accepted.'}
+                elif req['action'] == 'journal' and req.get('managerToken') == 'b' * 64:
+                    evs = byday.get(req['day'], [])
+                    if req.get('after'): evs = [x for x in evs if x['id'].split('/')[1][:6] >= req['after']]
+                    out = {'ok': True, 'day': req['day'], 'events': evs, **({'workers': D['workers'], 'jobs': D['jobs'], 'groups': D['groups']} if req.get('meta') else {})}
+                else: out = {'ok': False, 'message': 'refused'}
+                await route.fulfill(status=200, content_type='application/json', body=json.dumps({'reply_b64': base64.b64encode(json.dumps(out, ensure_ascii=False).encode()).decode()}))
+            s2 = await b.new_page(); s2.on('pageerror', lambda e: errs.append(str(e))); await s2.route('https://www.wolframcloud.com/**', answer)
+            await s2.clock.install(time=dt.datetime(2026, 11, 24, 10, 30, tzinfo=dt.timezone.utc).timestamp())
+            await s2.goto(U + '?source=service&days=7#bottlenecks'); await s2.wait_for_selector('#mkey')
+            await s2.fill('#mkey', '"boss-key"'); await s2.click('#mform button'); await s2.wait_for_selector('.kpis', timeout=60000)
+            ok('service mode: the key is sent once, then only the token', [r.get('managerKey') for r in seen if r['action'] == 'managerSignin'][-1] == 'boss-key' and all('managerKey' not in r and r.get('managerToken') == 'b' * 64 for r in seen if r['action'] == 'journal'))
+            ok('service mode: reads 7 days, one at a time, lists once', [r['day'] for r in seen if r['action'] == 'journal'] == [(dt.date(2026, 11, 24) - dt.timedelta(days=i)).isoformat() for i in range(7)] and sum(1 for r in seen if r.get('meta')) == 1)
+            last7svc = [d for d in dates if d >= '2026-11-18']
+            runs7svc = [s for s in sessions if s['end'] and s['chosen'] and s['date'] in last7svc]
+            ok(f'service mode: the same figures as the sample ({len(runs7svc)} jobs)', f'{len(runs7svc):,} jobs' in await s2.inner_text('#app') and await s2.inner_text('#srcBadge') == 'Service')
+            await s2.click('nav.views button[data-v=live]'); await s2.wait_for_selector('.tcard')
+            n0 = len(seen); await s2.clock.run_for(61000); await s2.wait_for_timeout(800)
+            ok('service mode: each minute reads only today\'s newer clicks', any(r['action'] == 'journal' and r['day'] == '2026-11-24' and len(r.get('after', '')) == 6 for r in seen[n0:]))
             ok('no page errors', not errs)
             if errs: print(errs[:5])
             await b.close()

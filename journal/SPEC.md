@@ -1,6 +1,6 @@
 # CCN Terminal · Journal — specification
 
-*Version 1 · 24 November 2026 · Computational Classnotes*
+*Version 1.1 · 24 November 2026 · Computational Classnotes*
 
 ## 1. Purpose
 
@@ -53,19 +53,19 @@ No record ever holds a passkey, a key or a token.
 
 These already exist: `signin` (now returns a `token`), `signout`, `job`, `tick`, `event`, `complete`, `message`, `messages`, `emergency`, `authorSignin`, `authorSignout`, `listJobs`, `getJob` and `saveJob`.
 
-**New, for the Journal (next release of `ff_terminal`):**
+**New, for the Journal.** These are written and tested in `ff_terminal.nb` (70 checks), and wait for the owner's release:
 
 | Action | Sends | Answers |
 |---|---|---|
 | `managerSignin` | `managerKey` | `{ok, token}` |
 | `managerSignout` | `managerToken` | `{ok}` |
-| `journal` | `managerToken, from, to` (dates) | `{ok, events, tables, workers, jobs, groups}`: the log records in the range, plus the lists |
-| `saveGroups` | `managerToken` (or `authorToken`), `groups` | `{ok}` |
+| `journal` | `managerToken, day` (`YYYY-MM-DD`), optional `after` (`HHMMSS`) and `meta:true` | `{ok, day, events}`: that day's records, each with an `id`; with `meta`, also `workers`, `jobs` and `groups` |
+| `saveGroups` | `managerToken` (or `authorToken`, for the admin tool), `groups` | `{ok}`. Each group is cleaned, and a group without a name, or two groups with one ID, are refused |
 | `terminalAddManager[name, key]` | (owner, unsaved notebook) | adds a manager key, as a salted hash |
 
 A group is `{id, name, basis, color, tables:[…], workers:[…]}`.
 
-For a long range, `journal` may need to be paged (`cursor`). Daily summaries kept by the service are a possible later step; until then, the page reads the raw clicks.
+**One day at a time.** The page asks for one day per request: 14 days on opening (`?days=` changes this, up to 60), then, each minute, only today's clicks after the last one it has (`after`). It merges records by `id`. The service gathers a past day once into a single object, `Terminal/logday/<date>`, so later reads of that day are one read, not one per click. Today is always read fresh.
 
 ## 6. Definitions (how every figure is computed)
 
@@ -159,14 +159,16 @@ In short (full scheme: `SECURITY.md`):
 - `journal/sample-data.json` and `journal/tools/make-sample.py`: the fake sample and its maker.
 - `journal/SPEC.md`, `journal/SPEC.pdf`: this specification.
 - `SECURITY.md`: the security scheme.
-- `tests/journal.py`: 23 checks. Every screen renders on the sample, at desktop and phone width. The figures agree with an independent computation in Python. The group filter works, groups are kept and reset, and service mode asks for the manager key.
+- `tests/journal.py`: 27 checks. Every screen renders on the sample, at desktop and phone width. The figures agree with an independent computation in Python. The group filter works, and groups are kept and reset. Against a stand-in that answers as the service does, the key is sent once and then only the token; 7 days are read one at a time; the figures match the sample; and each minute reads only today's newer clicks.
+- `tests/TerminalTests.nb` (in the owner's `Terminal` folder): 70 checks of the service, the Journal actions included.
 
 Address: https://lossofgenerality.github.io/terminal/journal/ (add `?source=service` for the live service, once it offers the Journal).
 
 ## 12. The owner's steps
 
-1. Release `ff_terminal.nb`, which brings session tokens and the context. Open it fresh, evaluate it, quit. Then deploy again: `CloudGet[…ffTerminal]; terminalDeploy[]`.
-2. When the Journal actions are added (section 5): release and deploy again, then add a manager key with `terminalAddManager` in a new, unsaved notebook.
+1. Release `ff_terminal.nb`. One release brings the session tokens, the context and the Journal actions. Open it fresh, evaluate it, quit. Then deploy again: `CloudGet[…ffTerminal]; terminalDeploy[]`.
+2. Add a manager key with `terminalAddManager["<name>", "<key>"]` in a new, unsaved notebook, closed without saving.
+3. Open the Journal with `?source=service` and sign in with that key.
 
 ## 13. Open questions and next steps
 

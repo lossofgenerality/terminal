@@ -8,7 +8,7 @@
 |---|---|---|
 | Worker passkey | each worker | typed into the terminal at sign-in; the service keeps only a salted SHA-256 hash |
 | Author key | whoever writes jobs | typed into the authoring tool; kept only as a salted hash |
-| Manager key (Journal, planned) | managers | typed into the Journal; kept only as a salted hash |
+| Manager key (Journal) | managers | typed into the Journal; kept only as a salted hash |
 | Session token | the page, while signed in | in the page's memory only; the service keeps only its SHA-256 hash |
 | The records (jobs, clicks, messages, groups) | the service | private cloud objects under `Terminal/` in the owner's account |
 
@@ -35,7 +35,7 @@
 
 ## 4. At rest
 
-- **Passkeys, author keys and manager keys:** salted SHA-256 hashes only, in the private object `Terminal/config`. They are added by the owner with `terminalAddWorker`, `terminalAddAuthor` (and later `terminalAddManager`) **in a new, unsaved notebook**, closed without saving, so that no key is written to a file.
+- **Passkeys, author keys and manager keys:** salted SHA-256 hashes only, in the private object `Terminal/config`. They are added by the owner with `terminalAddWorker`, `terminalAddAuthor` and `terminalAddManager` **in a new, unsaved notebook**, closed without saving, so that no key is written to a file.
 - **Session tokens:** SHA-256 hashes only.
 - **The log:** one private object per event, under `Terminal/log/<date>/`. No log entry holds a passkey, a key or a token.
 - **All objects are private** to the owner's account. The only public object is the endpoint `TerminalKernel`. It runs as the owner, so it can read and write the private store, but it exposes only the actions above.
@@ -48,7 +48,7 @@
 
 ## 6. What the Journal adds
 
-- The Journal reads the history with a **manager key**, sent once for a manager session token, by the same scheme.
+- The Journal reads the history with a **manager key** (`terminalAddManager`), sent once for a manager session token, by the same scheme. Only a manager token reads the history; groups may be saved with a manager token or an author token (the admin tool); a worker's token does neither.
 - Every request now also carries a **context**: time zone, local time, a device summary, and the position where the browser allowed it. The service also reads the **IP address** from the request. These are personal data. Telling the workers about them, and deciding how long they are kept, are the employer's responsibility (agreed 24 November 2026).
 
 ## 7. Not yet covered (planned)
