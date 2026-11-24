@@ -106,7 +106,7 @@ footer { text-align:center; color:var(--mute); font-size:12px; padding:0 0 26px 
   </section>
 
   <section class="panel" id="msgPanel">
-    <h2>Message the manager</h2>
+    <h2>Message</h2>
     <div class="mute" style="margin:-4px 0 8px">Available before signing in too, for instance if the passkey is not accepted.</div>
     <div class="row"><input id="message" type="text" placeholder="Write a message to the manager" aria-label="Message to the manager"><button class="b" id="send">Send</button></div>
     <div class="st" id="mstat"></div>
@@ -452,7 +452,7 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
 
 /* ---------- build stamp ---------- */
 (() => {
-  const APP_BUILD = '2026.11.24-0037';   // page design build, stamped at each commit
+  const APP_BUILD = '2026.11.24-0038';   // page design build, stamped at each commit
   const show = s => new Date(s).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' });
   const slot = document.getElementById('updatedStamp');
   if (slot) slot.textContent = 'Page design build ' + APP_BUILD + (CFG.builder_build ? ' · builder build ' + CFG.builder_build : '') + ' · made ' + show(CFG.made);
