@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SFX Ray · Your CCN apps · User manual</title>
+<meta name="description" content="How SFX Ray staff use the CCN apps: the Terminal on the floor, job writing, the Journal, the CCN Camera builder and pages, and the account admin.">
+<link rel="icon" type="image/png" href="sfx-logo.png">
+<style>
+:root{--ink:#1F2328;--soft:#4A5058;--mute:#5E6670;--line:#E3E6EA;--card:#FFFFFF;--bg:#F6F7F8;--teal:#03C5B3;--tealInk:#016B61;--tealBg:#E6F8F6;--grey:#95909B;--conf:#15803D;--again:#FF0000;--warn:#FFF7E6;--warnLine:#F0C36B}
+*{box-sizing:border-box}
+html{scroll-padding-top:64px}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-text-size-adjust:100%}
+a{color:var(--tealInk);overflow-wrap:anywhere}
+header.top{background:var(--card);border-bottom:1px solid var(--line);padding:22px 20px 18px}
+.brand{display:flex;align-items:center;gap:14px;max-width:760px;margin:0 auto}
+.brand img{width:76px;height:auto}
+.brand small{display:block;color:var(--mute);font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+.brand b{display:block;font-size:22px;line-height:1.25}
+nav.toc{position:sticky;top:0;z-index:5;background:rgba(255,255,255,.96);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+nav.toc ul{list-style:none;margin:0 auto;padding:8px 14px;display:flex;gap:8px;overflow-x:auto;max-width:760px;scrollbar-width:none}
+nav.toc ul::-webkit-scrollbar{display:none}
+nav.toc a{display:inline-block;white-space:nowrap;text-decoration:none;color:var(--ink);font-size:15px;padding:9px 14px;border-radius:999px;border:1px solid var(--line);background:var(--card);min-height:44px;line-height:24px}
+nav.toc a:hover{border-color:var(--teal)}
+main{max-width:760px;margin:0 auto;padding:8px 18px 40px}
+section.part{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px 20px;margin-top:20px}
+.who{display:inline-block;font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--tealInk);background:var(--tealBg);border-radius:999px;padding:4px 12px;margin-bottom:6px}
+h1{font-size:28px;line-height:1.25;margin:18px 0 6px}
+h2{font-size:24px;line-height:1.3;margin:2px 0 6px}
+h3{font-size:19px;margin:26px 0 6px}
+p{margin:8px 0}
+.lead{color:var(--soft)}
+ol.steps{list-style:none;counter-reset:s;padding:0;margin:14px 0 0}
+ol.steps>li{counter-increment:s;position:relative;padding:0 0 18px 48px;border-left:2px solid var(--line);margin-left:16px}
+ol.steps>li:last-child{border-left-color:transparent;padding-bottom:0}
+ol.steps>li::before{content:counter(s);position:absolute;left:-17px;top:-2px;width:32px;height:32px;border-radius:50%;background:var(--teal);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:16px}
+ol.steps>li>b:first-child{display:block;font-size:18px}
+figure{margin:14px 0 6px;text-align:center}
+figure img{width:100%;max-width:300px;height:auto;border-radius:22px;border:1px solid var(--line);box-shadow:0 6px 22px rgba(0,0,0,.08);background:#fff}
+figcaption{font-size:14px;color:var(--mute);margin-top:6px}
+.pair{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.note{background:var(--warn);border:1px solid var(--warnLine);border-radius:12px;padding:12px 14px;margin:12px 0}
+.tip{background:var(--tealBg);border-radius:12px;padding:12px 14px;margin:12px 0}
+.conf{color:var(--conf);font-weight:700}.again{color:var(--again);font-weight:700}
+.apps{display:grid;gap:10px;margin-top:12px}
+.app{border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.app b{display:block}
+.app span{color:var(--soft);font-size:15px}
+.kbd{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;background:#EEF1F3;border-radius:6px;padding:1px 6px}
+dl.terms dt{font-weight:700;margin-top:10px}
+dl.terms dd{margin:2px 0 0;color:var(--soft)}
+footer{max-width:760px;margin:0 auto;padding:10px 18px 40px;color:var(--mute);font-size:13px;text-align:center}
+.top-link{display:block;text-align:right;font-size:14px;margin-top:10px}
+@media (min-width:700px){body{font-size:17.5px}h1{font-size:32px}}
+@media print{nav.toc{display:none}section.part{break-inside:avoid-page;border:0;padding:0}figure img{max-width:220px;box-shadow:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <img src="sfx-logo.png" alt="SFX Ray" width="611" height="492">
+    <div><small>SFX Ray · user manual</small><b>Your CCN apps, step by step</b></div>
+  </div>
+</header>
+<nav class="toc" aria-label="Contents"><ul>
+  <li><a href="#start">Start here</a></li>
+  <li><a href="#floor">On the floor</a></li>
+  <li><a href="#jobs">Writing jobs</a></li>
+  <li><a href="#journal">Managing</a></li>
+  <li><a href="#witness">Witness pages</a></li>
+  <li><a href="#account">Your account</a></li>
+  <li><a href="#good">Good to know</a></li>
+</ul></nav>
+
+<main>
+<h1>Welcome</h1>
+<p class="lead">This manual shows SFX Ray staff how to use the apps provided by Computational Classnotes (CCN). Each chapter is for one kind of person, so read only the chapters you need. Every app works on a phone, a tablet or a computer.</p>
+<p class="lead" style="font-size:15px">The pictures were taken in each app's test mode, with made-up data. Your own screens show your own jobs, people and pages.</p>
+
+<!-- ============================================================ -->
+<section class="part" id="start">
+  <span class="who">Everyone</span>
+  <h2>Start here</h2>
+  <p>You have six apps. You will use only one or two of them.</p>
+  <div class="apps">
+    <div class="app"><b>Terminal</b><span>On the floor: sign in, do one job, tick each step, sign out. Messages and Emergency.</span></div>
+    <div class="app"><b>Job authoring</b><span>For supervisors: write the jobs and their steps that appear on the Terminal.</span></div>
+    <div class="app"><b>Journal</b><span>For managers: the floor right now, and where the work slows down.</span></div>
+    <div class="app"><b>CCN Camera builder</b><span>Turn photos, a video or documents into a witness page.</span></div>
+    <div class="app"><b>Witness pages</b><span>The finished pages: every item read, searchable, with a support assistant.</span></div>
+    <div class="app"><b>CCN Camera admin</b><span>For the account holder: your details, which parts of the service you use, your usage.</span></div>
+  </div>
+
+  <h3>Your addresses</h3>
+  <p>CCN gives you the address of each app. Save them as bookmarks, or install the apps (below).</p>
+  <ul>
+    <li>Terminal: <b>[YOUR TERMINAL ADDRESS]</b>, one address for every station</li>
+    <li>Job authoring: <a href="https://lossofgenerality.github.io/terminal/author/">lossofgenerality.github.io/terminal/author</a></li>
+    <li>Journal: <a href="https://lossofgenerality.github.io/terminal/journal/?source=service">lossofgenerality.github.io/terminal/journal</a></li>
+    <li>CCN Camera builder: <a href="https://lossofgenerality.github.io/eye-witness-builder/">lossofgenerality.github.io/eye-witness-builder</a></li>
+    <li>CCN Camera admin: <a href="https://lossofgenerality.github.io/eye-witness-admin/">lossofgenerality.github.io/eye-witness-admin</a></li>
+  </ul>
+
+  <h3>Your key</h3>
+  <p>Each person signs in with their own key. Workers have a <b>passkey</b>, supervisors an <b>author key</b> and managers a <b>manager key</b>. For CCN Camera, the company has a <b>customer ID and key</b>.</p>
+  <ul>
+    <li><b>Keep it to yourself.</b> Never write it on the station or send it in a message. CCN never asks you for it.</li>
+    <li>Spaces and quotation marks around a key do not matter, so a key pasted with its quotes still works.</li>
+    <li>You type your key once, at sign-in. After that the app uses a short-lived sign-in of its own, which ends when you sign out.</li>
+    <li>Lost or shared a key? Tell your manager, and a new one can be made.</li>
+  </ul>
+
+  <h3>The one rule to remember</h3>
+  <div class="tip">When the system has received what you did, you see <span class="conf">Confirmed</span> in green beside it. <b>No Confirmed? Press again.</b> If you see <span class="again">Press again!</span> in full red, press that box once more.</div>
+  <p class="top-link"><a href="#">Back to the top</a></p>
+</section>
+
+<!-- ============================================================ -->
+<section class="part" id="floor">
+  <span class="who">Workers</span>
+  <h2>On the floor: the Terminal</h2>
+  <p class="lead">One job per sign-in. You tick each step as you finish it, and sign out when every step is done.</p>
+
+  <h3>The first time on a station</h3>
+  <ol class="steps">
+    <li><b>Install the app and name the station</b>
+      Press <b>Install app</b> and give the station its name, for example <span class="kbd">Packing-12</span>. The name then shows in the title. This is done once per device, usually by your supervisor.
+      <figure><img src="img/t01-install.webp" alt="The window that asks for the installation's name, with Packing-12 typed in" width="640" height="1385" loading="lazy"><figcaption>Naming the station</figcaption></figure></li>
+  </ol>
+
+  <h3>Every job</h3>
+  <ol class="steps">
+    <li><b>Sign in</b>
+      Type your passkey and press <b>Sign in</b>.
+      <figure><img src="img/t02-signin.webp" alt="The Terminal before sign-in: the passkey box, the warning, the message box and the red Emergency button" width="640" height="1385" loading="lazy"><figcaption>Before you sign in</figcaption></figure></li>
+    <li><b>Choose your job</b>
+      Pick it from the <b>Job</b> list. Its instructions appear underneath: read them first. Then its steps appear, each with its number.
+      <figure><img src="img/t03-job.webp" alt="A job chosen: the job list, the instructions and the steps" width="640" height="1385" loading="lazy"><figcaption>The job, its instructions and its steps</figcaption></figure></li>
+    <li><b>Tick each step as you finish it</b>
+      Tap the box beside the step. <span class="conf">Confirmed</span> appears beside it within a moment.
+      <figure><img src="img/t04-confirmed.webp" alt="Two steps ticked, each showing Confirmed in green" width="640" height="1385" loading="lazy"><figcaption>Each tick shows <span class="conf">Confirmed</span></figcaption></figure></li>
+    <li><b>Saw Press again!?</b>
+      If the connection is lost for a moment, the tick goes back after about 5 seconds and <span class="again">Press again!</span> appears. Simply tap the box again.
+      <figure><img src="img/t05-press-again.webp" alt="The third step unticked again, with Press again! in full red" width="640" height="1385" loading="lazy"><figcaption><span class="again">Press again!</span>: tap the box once more</figcaption></figure></li>
+    <li><b>Sign out</b>
+      When every step shows <span class="conf">Confirmed</span>, <b>Sign out</b> becomes available. Press it, then <b>Yes, sign out</b>. The job is recorded as done, and the next person sees one job fewer.
+      <div class="pair">
+        <figure><img src="img/t06-all-ticked.webp" alt="All three steps ticked and Confirmed" width="640" height="1385" loading="lazy"><figcaption>All steps Confirmed</figcaption></figure>
+        <figure><img src="img/t07-are-you-sure.webp" alt="The ARE YOU SURE? window with Cancel and Yes, sign out" width="640" height="1385" loading="lazy"><figcaption>ARE YOU SURE?</figcaption></figure>
+      </div>
+      <figure><img src="img/t08-signed-out.webp" alt="Signed out, with the job recorded as done and Confirmed" width="640" height="1385" loading="lazy"><figcaption>Signed out, and the job recorded</figcaption></figure></li>
+  </ol>
+
+  <h3>Message your manager</h3>
+  <p>Type in <b>Write your message</b> and press <b>Send</b>. This works even if you cannot sign in. A small dot shows what happened to the message:</p>
+  <ul>
+    <li><b>red:</b> not sent; press <b>Send again</b></li>
+    <li><b>yellow:</b> delivered, not yet read</li>
+    <li><b>green:</b> your manager has opened it</li>
+    <li><b>blue:</b> handled</li>
+  </ul>
+  <p>Not every message needs a written reply. For "come and see me", your manager simply comes.</p>
+  <figure><img src="img/t09-message.webp" alt="A message sent, with Confirmed and the dot legend" width="640" height="1385" loading="lazy"><figcaption>A message sent</figcaption></figure>
+
+  <h3>Emergency</h3>
+  <div class="note"><b>In an accident, press the red Emergency button once.</b> Anyone can press it, signed in or not. If it cannot be sent, the page says so and keeps trying: <b>raise the alarm on site at once</b>, as you normally would.</div>
+  <p class="top-link"><a href="#">Back to the top</a></p>
+</section>
+
+<!-- ============================================================ -->
+<section class="part" id="jobs">
+  <span class="who">Supervisors</span>
+  <h2>Writing jobs: Job authoring</h2>
+  <p class="lead">The jobs you write here appear on every Terminal. The steps you set are the boxes the workers tick.</p>
+  <ol class="steps">
+    <li><b>Sign in with your author key</b>
+      <figure><img src="img/j01-signin.webp" alt="Job authoring sign-in" width="640" height="1385" loading="lazy"><figcaption>Signing in</figcaption></figure></li>
+    <li><b>Open a job, or press New job</b>
+      Give it a short <b>Job ID</b> (for example <span class="kbd">MI</span>) and a name (for example <i>Morning inspection</i>).
+      <figure><img src="img/j02-editor.webp" alt="The list of jobs and the job editor" width="640" height="1385" loading="lazy"><figcaption>Your jobs, and the editor</figcaption></figure></li>
+    <li><b>Write the instructions</b>
+      The <b>Job specifics</b> box works like a word processor. Select text, then press <b>B</b> for bold, <b>I</b> for italic, a colour dot to colour it, or <b>List</b> for bullet points. <b>Clear</b> removes the formatting.</li>
+    <li><b>Add the steps</b>
+      Each step has an ID (for example <span class="kbd">MI-01</span>) and a short text. Keep steps short and in the order they are done.
+      <figure><img src="img/j03-subtasks.webp" alt="The steps of a job, with Add a sub-task and Save" width="640" height="1385" loading="lazy"><figcaption>The steps, and Save</figcaption></figure></li>
+    <li><b>Check the preview, then Save</b>
+      The preview shows the job exactly as a worker will see it. Press <b>Save</b>. The job is on every Terminal at the next sign-in.</li>
+  </ol>
+  <p class="top-link"><a href="#">Back to the top</a></p>
+</section>
+
+<!-- ============================================================ -->
+<section class="part" id="journal">
+  <span class="who">Managers</span>
+  <h2>Managing the floor: the Journal</h2>
+  <p class="lead">Everything the Terminals report, in one place: who is working where, how far along they are, and where the work slows down. Sign in with your manager key.</p>
+
+  <h3>Live: the floor right now</h3>
+  <p>It refreshes every minute. At the top are today's figures. Below, a card for each work-table shows who is signed in, the job, how far along it is, and how long the current step has taken. <b>Running long</b> (in amber) means a step is taking more than one and a half times its usual time.</p>
+  <div class="pair">
+    <figure><img src="img/n01-live.webp" alt="The Journal's Live view: today's figures" width="640" height="1385" loading="lazy"><figcaption>Today at a glance</figcaption></figure>
+    <figure><img src="img/n02-tables.webp" alt="Work-table cards, one Running long" width="640" height="1385" loading="lazy"><figcaption>Each work-table</figcaption></figure>
+  </div>
+
+  <h3>Bottlenecks: where the work slows down</h3>
+  <p>Choose the dates, a group and a job. The <b>heatmap</b> shows each work-table, hour by hour. <b>Amber means slower than usual</b> for those steps. Below it are <b>the slowest steps</b>, the groups compared, and trouble signs such as unticks and <span class="again">Press again!</span>. <b>Download CSV</b> gives you the figures in a spreadsheet.</p>
+  <div class="pair">
+    <figure><img src="img/n03-bottlenecks.webp" alt="Bottlenecks: filters and figures" width="640" height="1385" loading="lazy"><figcaption>Choose the dates, group and job</figcaption></figure>
+    <figure><img src="img/n04-heatmap.webp" alt="The heatmap of step times by table and hour" width="640" height="1385" loading="lazy"><figcaption>The heatmap</figcaption></figure>
+  </div>
+
+  <h3>Timeline, Drill-down and Groups</h3>
+  <ul>
+    <li><b>Timeline:</b> one day at every work-table. Jobs are bars, and steps running long are amber.</li>
+    <li><b>Drill-down:</b> one job by one person. Time per step, and every click as the system received it.</li>
+    <li><b>Groups:</b> make your own groups of work-tables and people, such as <i>First floor</i>, <i>Cutters</i> or <i>Second shift</i>. A table or person can be in several groups.</li>
+  </ul>
+  <div class="pair">
+    <figure><img src="img/n05-timeline.webp" alt="The Timeline view" width="640" height="1385" loading="lazy"><figcaption>Timeline</figcaption></figure>
+    <figure><img src="img/n06-drill.webp" alt="Drill-down: time per step" width="640" height="1385" loading="lazy"><figcaption>Drill-down</figcaption></figure>
+  </div>
+  <figure><img src="img/n07-groups.webp" alt="The list of groups" width="640" height="1385" loading="lazy"><figcaption>Groups</figcaption></figure>
+  <p class="top-link"><a href="#">Back to the top</a></p>
+</section>
+
+<!-- ============================================================ -->
+<section class="part" id="witness">
+  <span class="who">Whoever makes witness pages</span>
+  <h2>Witness pages: the CCN Camera builder</h2>
+  <p class="lead">Turn photos, a video or documents (PDF, text, Excel) into a witness page. Every item is read: text in any language, names, numbers, codes and more. Each item gets its own address.</p>
+  <ol class="steps">
+    <li><b>Sign in</b>
+      Choose <b>Customer</b>, type your customer ID and key, and press <b>Check connection</b>. The page lists what your account includes.
+      <figure><img src="img/b01-signin.webp" alt="The builder's sign-in, connected, listing what the account includes" width="640" height="1385" loading="lazy"><figcaption>Signed in and connected</figcaption></figure></li>
+    <li><b>Add your files and choose the options</b>
+      Drop in or choose photos, a video or documents; you can add more at any time. Leave the title empty to have one suggested. The builder shows the estimated cost before you start.
+      <figure><img src="img/b02-files.webp" alt="Reading options and the estimate" width="640" height="1385" loading="lazy"><figcaption>Options and the estimate</figcaption></figure></li>
+    <li><b>Build, check, publish</b>
+      Press <b>Build witness page</b>. Check the preview, then <b>Publish to the web</b> (or <b>Download ZIP</b>, where your account includes it).
+      <figure><img src="img/b03-built.webp" alt="A build finished, with Publish to the web" width="640" height="1385" loading="lazy"><figcaption>Built and ready to publish</figcaption></figure></li>
+    <li><b>Your published pages</b>
+      Under <b>My published pages</b>, press <b>Show the pages</b> to see them all, newest first. <b>Copy</b> makes a duplicate under a new address without reading anything again. <b>Delete</b> removes a page once you have typed its name.</li>
+  </ol>
+
+  <h3>Reading a witness page</h3>
+  <p>Open the page's address. Tap any item to see what was read. Use <b>Search</b> to find text, names or numbers. <b>Copy link</b> gives the address of one exact item, for example <span class="kbd">#F03</span>. Where your account includes them, there is a support assistant to ask questions, and an <b>Install</b> button.</p>
+  <div class="pair">
+    <figure><img src="img/w01-page.webp" alt="A witness page: its title and first image" width="640" height="1385" loading="lazy"><figcaption>A witness page</figcaption></figure>
+    <figure><img src="img/w02-page-more.webp" alt="Search and the list of what was read" width="640" height="1385" loading="lazy"><figcaption>Search, and every item read</figcaption></figure>
+  </div>
+  <div class="note">Readings are made by AI and may contain mistakes. Check anything important against the photo, video or document itself.</div>
+  <p class="top-link"><a href="#">Back to the top</a></p>
+</section>
+
+<!-- ============================================================ -->
+<section class="part" id="account">
+  <span class="who">The account holder</span>
+  <h2>Your account: the CCN Camera admin</h2>
+  <p class="lead">Keep your company's details up to date, choose which parts of the service you use, and see your usage.</p>
+  <ol class="steps">
+    <li><b>Sign in as Customer</b>
+      Choose <b>Customer</b>, then type your customer ID and key.
+      <figure><img src="img/e01-admin-signin.webp" alt="The admin's sign-in, Customer chosen" width="640" height="1385" loading="lazy"><figcaption>Signing in</figcaption></figure></li>
+    <li><b>Business details</b>
+      Your contact email; a privacy contact, for anyone who objects to appearing in your media; how long records are kept; and the assistant's languages. Press <b>Save</b>.
+      <figure><img src="img/e02-admin-service.webp" alt="Business details" width="640" height="1385" loading="lazy"><figcaption>Business details</figcaption></figure></li>
+    <li><b>Parts of the service</b>
+      Switch off anything you do not want. Greyed-out parts are not in your plan: contact CCN to add them.
+      <figure><img src="img/e03-admin-parts.webp" alt="Switches for the parts of the service" width="640" height="1385" loading="lazy"><figcaption>Parts of the service</figcaption></figure></li>
+    <li><b>Your limits and usage</b>
+      These show what your plan allows each month and what you have used so far. <b>Your published pages</b> lists your pages, as in the builder.
+      <figure><img src="img/e04-admin-pages.webp" alt="Limits, usage this month and published pages" width="640" height="1385" loading="lazy"><figcaption>Limits, usage and pages</figcaption></figure></li>
+  </ol>
+  <p class="top-link"><a href="#">Back to the top</a></p>
+</section>
+
+<!-- ============================================================ -->
+<section class="part" id="good">
+  <span class="who">Everyone</span>
+  <h2>Good to know</h2>
+  <h3>Privacy</h3>
+  <ul>
+    <li>While you are testing, your witness pages can be opened by anyone who has the address. Once you approve the software, <b>your pages become private</b>.</li>
+    <li>People who appear in your photos and videos are personal data. Faces are described, never identified. Your privacy contact (in the admin) receives any objections.</li>
+    <li>The Terminal records each click with its time, station and device. That is how the Journal works. Your company tells staff what is recorded and for how long.</li>
+  </ul>
+  <h3>If something goes wrong</h3>
+  <ul>
+    <li><b>The passkey is not accepted:</b> check it, then use <b>Message</b> to tell your manager.</li>
+    <li><b>Press again! keeps coming back:</b> the station has no connection. Check the Wi-Fi; your ticks are kept until it returns.</li>
+    <li><b>Sign out stays grey:</b> a step is not yet ticked, or not yet Confirmed.</li>
+    <li><b>An app looks out of date:</b> reload the page.</li>
+    <li><b>Anything else:</b> <b>[SUPPORT CONTACT]</b></li>
+  </ul>
+  <h3>Words used in the apps</h3>
+  <dl class="terms">
+    <dt>Job</dt><dd>One piece of work, done in one sign-in, made of steps (sub-tasks).</dd>
+    <dt>Station, work-table</dt><dd>The place, and its device, where the work is done, for example <i>Packing-12</i>.</dd>
+    <dt><span class="conf">Confirmed</span></dt><dd>The system has received what you did.</dd>
+    <dt><span class="again">Press again!</span></dt><dd>It did not arrive: press once more.</dd>
+    <dt>Group</dt><dd>Any set of work-tables and people that a manager chooses, for comparing.</dd>
+    <dt>CCN Camera</dt><dd>The service that turns your photos, video or documents into witness pages: the builder, the pages and the admin.</dd>
+    <dt>Witness page</dt><dd>A web page made with CCN Camera from your photos, video or documents, with every item read.</dd>
+  </dl>
+  <p class="top-link"><a href="#">Back to the top</a></p>
+</section>
+</main>
+<footer>SFX Ray user manual · updated 25 November 2026, 14:15 · by Computational Classnotes<br>© Computational Classnotes · CC BY-NC-SA 4.0</footer>
+</body>
+</html>
