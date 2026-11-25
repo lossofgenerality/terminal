@@ -1,6 +1,6 @@
 # Checks of the click reports (rules 1-3) against the stand-in service on the real wire (payload_b64 in, reply_b64 out):
 # every tick and untick, the station named, the install, the job chosen, Sign out Cancel and Yes are sent at once, in order,
-# with time, station, job and sub-task ID. Each tick shows Confirmed (bold orange) once the service has it; with no confirmation
+# with time, station, job and sub-task ID. Each tick shows Confirmed (bold green) once the service has it; with no confirmation
 # in 5 s the box goes back and Press again! (bold red) shows. Other clicks wait under "Waiting to send"; sign-out completes
 # only once the service has them all. Also the same in test mode (?mock=1), where the page plays the service.
 # Run:  python3 -I tests/clicks.py   (needs: pip install playwright; playwright install chromium)
@@ -49,13 +49,13 @@ async def main():
             await t.click('#logout'); await t.wait_for_selector('#sure:not([hidden])'); await t.click('#sureNo'); await t.wait_for_timeout(400)
             ok('Sign out Cancel reported', (await clicks(t))[-1]['kind']=='signout-cancel')
             ok('each tick shows Confirmed beside it', await t.eval_on_selector_all('#subtasks .tconf','L=>L.every(e=>e.textContent==="Confirmed")'))
-            ok('Confirmed is bold orange', await t.eval_on_selector('#subtasks .tconf b','b=>getComputedStyle(b).fontWeight>=600 && getComputedStyle(b).color==="rgb(234, 88, 12)"'))
+            ok('Confirmed is bold green', await t.eval_on_selector('#subtasks .tconf b','b=>getComputedStyle(b).fontWeight>=600 && getComputedStyle(b).color==="rgb(21, 128, 61)"'))
             # no connection: after 5 s the box goes back and Press again! shows
             n0=len(await clicks(t)); await offline(t,True)
             await boxes[2].uncheck(); await t.wait_for_timeout(1500)
             ok('while on its way: no receipt yet, box waits', (await t.inner_text('#subtasks .tconf >> nth=2'))=='' and await boxes[2].is_disabled())
             await t.wait_for_function("document.querySelectorAll('#subtasks .tconf')[2].textContent==='Press again!'", timeout=7000)
-            ok('after 5 s: Press again! in bold red, box back as it was', await boxes[2].is_checked() and await t.eval_on_selector('#subtasks .tconf >> nth=2','e=>getComputedStyle(e.querySelector("b")).color==="rgb(220, 38, 38)"'))
+            ok('after 5 s: Press again! in bold full red, box back as it was', await boxes[2].is_checked() and await t.eval_on_selector('#subtasks .tconf >> nth=2','e=>getComputedStyle(e.querySelector("b")).color==="rgb(255, 0, 0)"'))
             ok('nothing reached the service', len(await clicks(t))==n0)
             await offline(t,False); await boxes[2].uncheck(); await t.wait_for_function("document.querySelectorAll('#subtasks .tconf')[2].textContent==='Confirmed'", timeout=7000)
             ok('pressed again: the untick is Confirmed', not await boxes[2].is_checked() and [(x['sub'],x['checked']) for x in (await clicks(t))[n0:]]==[(ids[2],False)])

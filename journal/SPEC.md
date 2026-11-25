@@ -113,7 +113,7 @@ A group is `{id, name, basis, color, tables:[…], workers:[…]}`.
    - An editor: name, a note on what makes the group, and its tables and workers. Save, *See its bottlenecks*, Delete.
    - A grid of who is in which group.
 
-The look: dark, IBM Plex Sans and Mono, teal for normal work, amber for slow-downs. The orange **Confirmed** matches the terminal. Every screen works at phone width, and wide tables scroll inside their box.
+The look: dark, IBM Plex Sans and Mono, teal for normal work, amber for slow-downs. The green **Confirmed** matches the terminal. Every screen works at phone width, and wide tables scroll inside their box.
 
 ## 8. Live refresh
 

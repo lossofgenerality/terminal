@@ -53,7 +53,7 @@ h1 { font-size:22px; margin:4px 0 0 }
 .estop:active span { transform:translateY(3px); box-shadow:inset 0 -3px 6px rgba(0,0,0,.35), 0 1px 0 #7f1d1d }
 /* z-index 60 keeps the Emergency button above the ARE YOU SURE? window (50), so it can always be pressed */
 .estop:focus-visible { outline:3px solid var(--accent); outline-offset:3px }
-.conf { color:#ea580c; font-weight:700; font-size:12.5px; margin-left:8px; white-space:nowrap } .pressagain { color:#dc2626; font-weight:700; font-size:12.5px; margin-left:8px; white-space:nowrap }
+.conf { color:#15803d; font-weight:700; font-size:12.5px; margin-left:8px; white-space:nowrap } .pressagain { color:#ff0000; font-weight:700; font-size:12.5px; margin-left:8px; white-space:nowrap }
 #outbox { margin-top:8px; font-size:12.5px; color:var(--warn); display:flex; align-items:center; gap:6px; flex-wrap:wrap }
 #emBox { border:2px solid #dc2626; background:rgba(220,38,38,.07) } #emBox h2 { color:#dc2626 }
 #emBox .row { flex-wrap:wrap }
@@ -163,7 +163,7 @@ const CFG = JSON.parse($('#config').textContent);
 const MOCK = !!CFG.mock || /[?&]mock=1/.test(location.search);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
 const clean = v => String(v || '').trim();
-/* receipts: Confirmed (bold orange) once the service has a click; Press again! (bold red) when it has not, after 5 s */
+/* receipts: Confirmed (bold green) once the service has a click; Press again! (bold full red) when it has not, after 5 s */
 const CONF = '<b class="conf">Confirmed</b>', AGAIN = '<b class="pressagain">Press again!</b>';
 /* keys (passkeys, author keys): spaces and surrounding quotes are dropped, the same rule as the service: "123", '123', “123” all mean 123 */
 const keyClean = v => { let s = String(v || '').trim(); for (let i = 0; i < 3; i++) { const m = s.match(/^(["'`“”‘’„«»])([\s\S]*)(["'`“”‘’„«»])$/); if (!m) break; s = m[2].trim(); } return s; };
@@ -403,7 +403,7 @@ async function pump() {
   }
   outBusy = false; outWaiters.splice(0).forEach(f => f());
 }
-/* the receipt: Confirmed, in bold orange, beside or under the control once the service has the click */
+/* the receipt: Confirmed, in bold green, beside or under the control once the service has the click */
 function flash(el) { el.innerHTML = CONF; clearTimeout(el._t); el._t = setTimeout(() => { el.innerHTML = ''; }, 5000); }
 const allSent = () => outbox.length ? new Promise(r => outWaiters.push(r)) : Promise.resolve();
 addEventListener('online', pump);
@@ -540,7 +540,7 @@ function showTask() {
   }
 }
 /* ---------- each tick and untick goes to the service at once; its receipt is shown beside it ----------
-   Confirmed (bold orange) once the service has it. With no confirmation within 5 s the box goes back to how it was
+   Confirmed (bold green) once the service has it. With no confirmation within 5 s the box goes back to how it was
    and Press again! (bold red) shows: pressing again is an ordinary press, sent afresh. The box waits while a press is on its way. */
 function paintTick(k) {
   const box = document.querySelector(`#subtasks input[data-k="${k}"]`), el = document.querySelector(`#subtasks .tconf[data-c="${k}"]`);
